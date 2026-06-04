@@ -1,0 +1,5 @@
+{
+  "artifactType": "ARTIFACT_TYPE_OTHER",
+  "summary": "Create src/utils/cvParser.js with rule-based regex parsing and Gemini API client-side extraction.",
+  "updatedAt": "2026-06-04T03:47:44.608982Z"
+}

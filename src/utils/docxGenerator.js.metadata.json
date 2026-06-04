@@ -1,0 +1,5 @@
+{
+  "artifactType": "ARTIFACT_TYPE_OTHER",
+  "summary": "Create src/utils/docxGenerator.js using the docx package to assemble CV components into DOCX files.",
+  "updatedAt": "2026-06-04T03:47:53.564662Z"
+}
