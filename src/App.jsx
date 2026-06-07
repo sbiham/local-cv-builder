@@ -38,7 +38,7 @@ import './App.css';
 
 const sampleCVData = {
   name: "John Dou",
-  title: "Senior Backend Engineer (Node.js)",
+  title: "Senior Backend Engineer",
   email: "john.dou@example.com",
   phone: "+1-123-456-7890",
   location: "Generic Location",
@@ -112,17 +112,18 @@ function SortableItem({ id, children }) {
         {...listeners} 
         style={{ 
           position: 'absolute', 
-          right: '8px', 
-          top: '8px', 
-          padding: '4px',
+          left: '0px', 
+          top: '0px', 
+          padding: '6px',
           cursor: 'grab', 
-          color: '#cbd5e1',
+          color: '#94a3b8',
           zIndex: 10,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          background: 'rgba(255,255,255,0.8)',
-          borderRadius: '4px'
+          background: '#f1f5f9',
+          borderBottomRightRadius: '8px',
+          borderTopLeftRadius: '8px'
         }}
       >
         <GripVertical size={16} />
@@ -1224,7 +1225,7 @@ function App() {
                     value={cvData.title} 
                     onChange={(e) => handleFieldChange('personal', null, 'title', e.target.value)}
                     className="form-input"
-                    placeholder="e.g. Senior Backend Engineer (Node.js)"
+                    placeholder="e.g. Senior Backend Engineer"
                   />
                 </div>
                 <div className="form-row">
@@ -1341,18 +1342,6 @@ function App() {
                         onChange={(e) => handleFieldChange('experience', jobIdx, 'role', e.target.value)}
                         className="form-input"
                       />
-                    </div>
-                    
-                    <div className="form-group" style={{ marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                      <input 
-                        type="checkbox" 
-                        id={`page-break-exp-${jobIdx}`}
-                        checked={job.pageBreakBefore || false}
-                        onChange={(e) => handleFieldChange('experience', jobIdx, 'pageBreakBefore', e.target.checked)}
-                      />
-                      <label htmlFor={`page-break-exp-${jobIdx}`} style={{ margin: 0, fontWeight: 'normal', cursor: 'pointer', fontSize: '0.85rem', color: 'var(--text-light)' }}>
-                        Force page break before this job
-                      </label>
                     </div>
 
                     <div className="form-group">
@@ -1734,17 +1723,25 @@ function App() {
                 }}
               >
               <div 
-                className={`cv-page ${cvTemplate === 'sidebar' ? 'template-sidebar-page' : ''} font-${customization.fontPair}`}
+                className={`cv-page ${cvTemplate === 'sidebar' ? 'template-sidebar-page' : ''}`}
                 ref={cvPageRef} 
                 style={{ 
                   '--cv-page-height': `${pageCount * 297}mm`,
-                  '--accent-color': customization.accentColor,
-                  fontFamily: customization.fontPair === 'sans' ? "'Inter', 'Roboto', 'Arial', sans-serif" :
-                              customization.fontPair === 'serif' ? "'Merriweather', 'Garamond', 'Times New Roman', serif" :
-                              "'Roboto Mono', 'Fira Code', 'Courier New', monospace",
+                  '--cv-accent': customization.accentColor,
+                  '--cv-orange': customization.accentColor,
+                  '--accent-orange': customization.accentColor,
                   lineHeight: customization.lineSpacing
                 }}
               >
+                <style>
+                  {`
+                    .cv-page, .cv-page * {
+                      ${customization.fontPair === 'sans' ? "font-family: 'Inter', 'Roboto', 'Arial', sans-serif !important;" : ""}
+                      ${customization.fontPair === 'serif' ? "font-family: 'Merriweather', 'Garamond', 'Times New Roman', serif !important;" : ""}
+                      ${customization.fontPair === 'mono' ? "font-family: 'Roboto Mono', 'Fira Code', 'Courier New', monospace !important;" : ""}
+                    }
+                  `}
+                </style>
                 {/* Visual Page Break Dividers (Preview Only) */}
                 {Array.from({ length: pageCount - 1 }).map((_, idx) => (
                   <div 
