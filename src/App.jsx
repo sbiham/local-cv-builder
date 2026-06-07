@@ -907,26 +907,6 @@ function App() {
           <img src="/logo.png" alt="ElevateCV Logo" style={{ height: '36px', width: '36px', borderRadius: '6px' }} />
           <h1>ElevateCV</h1>
         </div>
-        <div className="api-key-container">
-          <Key size={16} color="#94a3b8" />
-          <input 
-            type="password" 
-            placeholder="Gemini API Key (optional)" 
-            value={apiKey} 
-            onChange={handleApiKeyChange}
-            className="api-key-input"
-            title="Enter Gemini API key to use advanced AI extraction"
-          />
-          <label className="toggle-label" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.8rem', color: 'var(--text-muted)', cursor: 'pointer' }}>
-            <input 
-              type="checkbox" 
-              checked={isAIEnabled} 
-              onChange={() => setIsAIEnabled(!isAIEnabled)}
-              disabled={!apiKey}
-              style={{ cursor: 'pointer' }}
-            />
-            Use AI
-          </label>
         </div>
       </header>
 
