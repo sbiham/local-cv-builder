@@ -281,6 +281,7 @@ function App() {
       // Compute the number of A4 pages, allowing a 5px tolerance to prevent 
       // floating point rounding or sub-pixel rendering from causing an extra page
       const pages = Math.ceil((height - 5) / pageHeightPx);
+      console.log('updatePageCount', { height, pageHeightPx, pages, previousPageCount: pageCount });
       setPageCount(Math.max(1, pages));
     }
   };
@@ -289,57 +290,55 @@ function App() {
     const pageElement = cvPageRef.current;
     if (!pageElement) return;
 
-    // Reset top margins so we measure the natural flow
-    const breakables = pageElement.querySelectorAll(
-      '.cv-section-header, .cv-item-header, .cv-bullets li, .cv-skills-item, .cv-language-item'
-    );
-    breakables.forEach(el => {
-      el.style.marginTop = '';
-    });
+    try {
+      // Reset top margins so we measure the natural flow
+      const breakables = pageElement.querySelectorAll(
+        '.cv-section-header, .cv-item-header, .cv-bullets li, .cv-skills-item, .cv-language-item, .ts-heading-right, .ts-item, .ts-bullets li, .ts-skill-item, .ts-language-item, .ts-heading-left, .ts-custom-section'
+      );
+      breakables.forEach(el => {
+        el.style.marginTop = '';
+      });
 
-    const widthPx = pageElement.offsetWidth || 794;
-    const pxPerMm = widthPx / 210;
-    const pageHeightPx = 297 * pxPerMm;
-    const topMarginPx = 8 * pxPerMm; // Increased breathing room at the top of the new page
-    const bottomMarginPx = 2 * pxPerMm; // Small safe zone (CSS padding already provides 10mm)
+      const widthPx = pageElement.offsetWidth || 794;
+      const pxPerMm = widthPx / 210;
+      const pageHeightPx = 297 * pxPerMm;
+      const topMarginPx = 8 * pxPerMm; // Increased breathing room at the top of the new page
+      const bottomMarginPx = 2 * pxPerMm; // Small safe zone (CSS padding already provides 10mm)
 
-    // Bounding rect relative to top of cv-page
-    const pageRect = pageElement.getBoundingClientRect();
+      const pageRect = pageElement.getBoundingClientRect();
 
-    breakables.forEach(el => {
-      const rect = el.getBoundingClientRect();
-      const relativeTop = rect.top - pageRect.top;
-      const relativeBottom = rect.bottom - pageRect.top;
+      breakables.forEach(el => {
+        const rect = el.getBoundingClientRect();
+        const relativeTop = rect.top - pageRect.top;
+        const relativeBottom = rect.bottom - pageRect.top;
 
-      // Determine thresholds so section and job headers fit with content
-      let thresholdPx = 8; 
-      if (el.classList.contains('cv-section-header')) {
-        thresholdPx = 30; // section header + divider line
-      } else if (el.classList.contains('cv-item-header')) {
-        thresholdPx = 20; // job header + first bullet point
-      }
+        let thresholdPx = 8; 
+        if (el.classList.contains('cv-section-header') || el.classList.contains('ts-heading-right') || el.classList.contains('ts-heading-left')) {
+          thresholdPx = 30; // section header + divider line
+        } else if (el.classList.contains('cv-item-header') || el.classList.contains('ts-item')) {
+          thresholdPx = 20; // job header + first bullet point
+        }
 
-      const pageTop = Math.floor(relativeTop / pageHeightPx);
-      const pageStartPx = pageTop * pageHeightPx;
-      const activeEndPx = pageStartPx + pageHeightPx - bottomMarginPx;
+        const pageTop = Math.floor(relativeTop / pageHeightPx);
+        const pageStartPx = pageTop * pageHeightPx;
+        const activeEndPx = pageStartPx + pageHeightPx - bottomMarginPx;
 
-      // Check if element overflows the active content area of the current page
-      if (relativeBottom + thresholdPx > activeEndPx) {
-        // Push completely to the active start of the next page
-        const nextPageStartPx = (pageTop + 1) * pageHeightPx + topMarginPx;
-        const neededMarginPx = nextPageStartPx - relativeTop;
-        el.style.marginTop = `${neededMarginPx}px`;
-      } else if (pageTop > 0 && relativeTop < pageStartPx + topMarginPx) {
-        // Element is on pageTop (not page 0) but starts inside the top margin zone.
-        // Push it down to the active start of this page.
-        const targetTopPx = pageStartPx + topMarginPx;
-        const neededMarginPx = targetTopPx - relativeTop;
-        el.style.marginTop = `${neededMarginPx}px`;
-      }
-    });
-
-    // Update A4 discrete page snaps height in the frame
-    updatePageCount();
+        if (relativeBottom + thresholdPx > activeEndPx) {
+          const nextPageStartPx = (pageTop + 1) * pageHeightPx + topMarginPx;
+          const neededMarginPx = nextPageStartPx - relativeTop;
+          el.style.marginTop = `${neededMarginPx}px`;
+        } else if (pageTop > 0 && relativeTop < pageStartPx + topMarginPx) {
+          const targetTopPx = pageStartPx + topMarginPx;
+          const neededMarginPx = targetTopPx - relativeTop;
+          el.style.marginTop = `${neededMarginPx}px`;
+        }
+      });
+    } catch (e) {
+      console.error('Error applying page breaks:', e);
+    } finally {
+      // Update A4 discrete page snaps height in the frame
+      updatePageCount();
+    }
   };
 
   useEffect(() => {
@@ -351,7 +350,7 @@ function App() {
      
 
     }
-  }, [cvData, activeTab]);
+  }, [cvData, activeTab, customization, cvTemplate]);
 
   // Handle window resizing as page ratios change
   useEffect(() => {
