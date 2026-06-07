@@ -903,7 +903,12 @@ function App() {
   return (
     <div className="app-container">
       <header className="app-header">
-        <div className="brand" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+        <div 
+          className="brand" 
+          onClick={handleReset}
+          style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer' }}
+          title="Return to home page"
+        >
           <img src="/logo.png" alt="ElevateCV Logo" style={{ height: '36px', width: '36px', borderRadius: '6px' }} />
           <h1>ElevateCV</h1>
         </div>
