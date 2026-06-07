@@ -907,7 +907,6 @@ function App() {
           <img src="/logo.png" alt="ElevateCV Logo" style={{ height: '36px', width: '36px', borderRadius: '6px' }} />
           <h1>ElevateCV</h1>
         </div>
-        </div>
       </header>
 
       {/* 1. INITIAL UPLOAD STATE */}
