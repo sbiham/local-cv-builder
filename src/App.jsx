@@ -648,6 +648,10 @@ function App() {
         ]
       };
     });
+    setCustomization(prev => ({
+      ...prev,
+      sectionOrder: [...(prev.sectionOrder || ['experience', 'education', 'skills', 'languages']), newId]
+    }));
     setActiveTab(newId);
     setIsAddSectionModalOpen(false);
   };
@@ -662,6 +666,10 @@ function App() {
     setCvData(prev => ({
       ...prev,
       customSections: (prev.customSections || []).filter(sec => sec.id !== sectionIdToDelete)
+    }));
+    setCustomization(prev => ({
+      ...prev,
+      sectionOrder: (prev.sectionOrder || []).filter(id => id !== sectionIdToDelete)
     }));
     setActiveTab('personal');
     setIsDeleteModalOpen(false);
@@ -1242,13 +1250,18 @@ function App() {
                 </p>
                 <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleSectionDragEnd}>
                   <SortableContext items={customization.sectionOrder || []} strategy={verticalListSortingStrategy}>
-                    {(customization.sectionOrder || []).map((sectionId) => (
-                      <SortableItem key={sectionId} id={sectionId}>
-                        <div style={{ padding: '0.75rem', background: '#fff', border: '1px solid var(--panel-border)', borderRadius: '6px', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', textTransform: 'capitalize' }}>
-                          <span style={{ marginLeft: '1.5rem', fontWeight: '500' }}>{sectionId}</span>
-                        </div>
-                      </SortableItem>
-                    ))}
+                    {(customization.sectionOrder || []).map((sectionId) => {
+                      const sectionTitle = sectionId.startsWith('custom_')
+                        ? (cvData.customSections || []).find(s => s.id === sectionId)?.title || 'Custom Section'
+                        : sectionId;
+                      return (
+                        <SortableItem key={sectionId} id={sectionId}>
+                          <div style={{ padding: '0.75rem', background: '#fff', border: '1px solid var(--panel-border)', borderRadius: '6px', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', textTransform: 'capitalize' }}>
+                            <span style={{ marginLeft: '1.5rem', fontWeight: '500' }}>{sectionTitle}</span>
+                          </div>
+                        </SortableItem>
+                      );
+                    })}
                   </SortableContext>
                 </DndContext>
               </div>
@@ -1973,18 +1986,12 @@ function App() {
                         )
                       };
 
-                      const order = customization.sectionOrder || ['experience', 'education', 'skills', 'languages'];
-                      return order.map(sectionId => sections[sectionId]);
-                    })()}
-
-                    {/* Custom Sections Section */}
-                    {cvData.customSections && cvData.customSections.length > 0 && (
-                      <>
-                        {cvData.customSections.map((section) => {
-                          if (!section.title || !section.title.trim()) return null;
+                      if (cvData.customSections && cvData.customSections.length > 0) {
+                        cvData.customSections.forEach((section) => {
+                          if (!section.title || !section.title.trim()) return;
                           const activeItems = (section.items || []).filter(item => item.title && item.title.trim());
-                          if (activeItems.length === 0) return null;
-                          return (
+                          if (activeItems.length === 0) return;
+                          sections[section.id] = (
                             <div key={section.id} className="cv-section">
                               <div className="cv-section-header">
                                 <h3 className="cv-section-title">{section.title}</h3>
@@ -2011,9 +2018,12 @@ function App() {
                               ))}
                             </div>
                           );
-                        })}
-                      </>
-                    )}
+                        });
+                      }
+
+                      const order = customization.sectionOrder || ['experience', 'education', 'skills', 'languages'];
+                      return order.map(sectionId => sections[sectionId]);
+                    })()}
                   </>
                 )}
 
@@ -2035,25 +2045,6 @@ function App() {
                         {cvData.linkedin && <div className="ts-contact-item"><Linkedin size={12}/> <span>{cvData.linkedin}</span></div>}
                         {cvData.github && <div className="ts-contact-item"><Github size={12}/> <span>{cvData.github}</span></div>}
                       </div>
-
-                      {cvData.customSections && cvData.customSections.length > 0 && (
-                        cvData.customSections.map(section => {
-                          const activeItems = (section.items || []).filter(item => item.title && item.title.trim());
-                          if (activeItems.length === 0) return null;
-                          return (
-                            <div key={section.id} className="ts-custom-section">
-                              <h3 className="ts-heading-left">{section.title}</h3>
-                              <div className="ts-divider-left"></div>
-                              {activeItems.map((item, idx) => (
-                                <div key={idx} className="ts-custom-item">
-                                  <span style={{fontWeight: 700, color: '#1e293b'}}>{item.title}</span>
-                                  {item.subtitle && <span style={{fontSize: '0.85em', color: '#475569'}}>{item.subtitle}</span>}
-                                </div>
-                              ))}
-                            </div>
-                          )
-                        })
-                      )}
 
                       {cvData.skills && cvData.skills.length > 0 && (
                         <div className="ts-skills-section">
@@ -2155,8 +2146,41 @@ function App() {
                           )
                         };
 
+                        if (cvData.customSections && cvData.customSections.length > 0) {
+                          cvData.customSections.forEach((section) => {
+                            if (!section.title || !section.title.trim()) return;
+                            const activeItems = (section.items || []).filter(item => item.title && item.title.trim());
+                            if (activeItems.length === 0) return;
+                            sidebarMainSections[section.id] = (
+                              <div key={section.id} className="ts-section">
+                                <h3 className="ts-heading-right">{section.title}</h3>
+                                <div className="ts-divider-right"></div>
+                                {activeItems.map((item, idx) => (
+                                  <div key={idx} className="ts-item">
+                                    <div className="ts-item-header">
+                                      <div className="ts-item-title">
+                                        <span className="ts-role">{item.title}</span>
+                                        {item.subtitle && <span className="ts-org-sep"> - </span>}
+                                        {item.subtitle && <span className="ts-org">{item.subtitle}</span>}
+                                      </div>
+                                      <div className="ts-date">{item.date}</div>
+                                    </div>
+                                    {item.bullets && item.bullets.length > 0 && (
+                                      <ul className="ts-bullets">
+                                        {item.bullets.map((bullet, bulletIdx) => (
+                                          bullet.trim() && <li key={bulletIdx}>{bullet}</li>
+                                        ))}
+                                      </ul>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                            );
+                          });
+                        }
+
                         const order = (customization.sectionOrder || ['experience', 'education', 'skills', 'languages'])
-                                      .filter(s => ['experience', 'education'].includes(s));
+                                      .filter(s => ['experience', 'education'].includes(s) || s.startsWith('custom_'));
                         return order.map(sectionId => sidebarMainSections[sectionId]);
                       })()}
                     </div>
