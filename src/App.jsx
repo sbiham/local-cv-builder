@@ -2052,31 +2052,38 @@ function App() {
                         {cvData.github && <div className="ts-contact-item"><Github size={12}/> <span>{cvData.github}</span></div>}
                       </div>
 
-                      {cvData.skills && cvData.skills.length > 0 && (
-                        <div className="ts-skills-section">
-                          <h3 className="ts-heading-left">Skills</h3>
-                          <div className="ts-divider-left"></div>
-                          {cvData.skills.map((skill, idx) => (
-                            <div key={idx} className="ts-skill-item">
-                              <span style={{fontWeight: 700, color: '#1e293b', marginBottom: '2px'}}>{skill.category}</span>
-                              <span style={{color: '#475569', fontSize: '0.9em', lineHeight: '1.3'}}>{skill.items}</span>
+                      {(() => {
+                        const sidebarLeftSections = {
+                          skills: cvData.skills && cvData.skills.length > 0 && (
+                            <div className="ts-skills-section" key="skills">
+                              <h3 className="ts-heading-left">Skills</h3>
+                              <div className="ts-divider-left"></div>
+                              {cvData.skills.map((skill, idx) => (
+                                <div key={idx} className="ts-skill-item">
+                                  <span style={{fontWeight: 700, color: '#1e293b', marginBottom: '2px'}}>{skill.category}</span>
+                                  <span style={{color: '#475569', fontSize: '0.9em', lineHeight: '1.3'}}>{skill.items}</span>
+                                </div>
+                              ))}
                             </div>
-                          ))}
-                        </div>
-                      )}
+                          ),
+                          languages: cvData.languages && cvData.languages.length > 0 && (
+                            <div className="ts-languages-section" key="languages">
+                              <h3 className="ts-heading-left">Languages</h3>
+                              <div className="ts-divider-left"></div>
+                              {cvData.languages.map((lang, idx) => (
+                                <div key={idx} className="ts-language-item">
+                                  <span style={{fontWeight: 700, color: '#1e293b'}}>{lang.name}</span>
+                                  {lang.proficiency && <span style={{color: '#475569', fontSize: '0.9em'}}>{lang.proficiency}</span>}
+                                </div>
+                              ))}
+                            </div>
+                          )
+                        };
 
-                      {cvData.languages && cvData.languages.length > 0 && (
-                        <div className="ts-languages-section">
-                          <h3 className="ts-heading-left">Languages</h3>
-                          <div className="ts-divider-left"></div>
-                          {cvData.languages.map((lang, idx) => (
-                            <div key={idx} className="ts-language-item">
-                              <span style={{fontWeight: 700, color: '#1e293b'}}>{lang.name}</span>
-                              {lang.proficiency && <span style={{color: '#475569', fontSize: '0.9em'}}>{lang.proficiency}</span>}
-                            </div>
-                          ))}
-                        </div>
-                      )}
+                        const order = (customization.sectionOrder || ['experience', 'education', 'skills', 'languages'])
+                                      .filter(s => ['skills', 'languages'].includes(s));
+                        return order.map(sectionId => sidebarLeftSections[sectionId]);
+                      })()}
                     </div>
 
                     <div className="ts-right-col">
