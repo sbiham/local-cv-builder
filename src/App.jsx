@@ -137,7 +137,13 @@ function App() {
   const [cvData, setCvData] = useState(() => {
     const saved = localStorage.getItem('cvDataDraft');
     if (saved) {
-      try { return JSON.parse(saved); } catch (e) { return null; }
+      try { 
+        const parsed = JSON.parse(saved); 
+        if (parsed && parsed.title) {
+          parsed.title = parsed.title.replace(/\s*\(Node\.js\)\s*/i, '');
+        }
+        return parsed;
+      } catch (e) { return null; }
     }
     return null;
   });
