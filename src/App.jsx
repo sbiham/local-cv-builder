@@ -800,7 +800,7 @@ function App() {
                       id="resume-upload"
                       onChange={handleFileChange}
                       accept=".docx,.pdf"
-                      style={{ display: 'none' }}
+                      style={{ position: 'absolute', width: '1px', height: '1px', padding: 0, margin: '-1px', overflow: 'hidden', clip: 'rect(0,0,0,0)', whiteSpace: 'nowrap', border: 0 }}
                     />
                     <div 
                       className={`dropzone ${dragActive ? 'active' : ''}`}
@@ -815,14 +815,14 @@ function App() {
                         Drag & Drop your resume<br />(PDF, DOCX) here
                       </p>
                       
-                      <label 
-                        htmlFor="resume-upload"
+                      <button 
+                        type="button"
                         className="btn-primary"
-                        onClick={(e) => { e.stopPropagation(); }}
+                        onClick={(e) => { e.stopPropagation(); document.getElementById('resume-upload')?.click(); }}
                         style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem', margin: '1.5rem 0', padding: '0.6rem 1.5rem', borderRadius: '8px', cursor: 'pointer' }}
                       >
                         <UploadCloud size={16} /> Browse Files
-                      </label>
+                      </button>
                       
                       <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
                         Supports up to 25 MB
@@ -1014,15 +1014,16 @@ function App() {
                         id="photo-upload-input"
                         accept="image/*" 
                         onChange={handlePhotoUpload}
-                        style={{ display: 'none' }}
+                        style={{ position: 'absolute', width: '1px', height: '1px', padding: 0, margin: '-1px', overflow: 'hidden', clip: 'rect(0,0,0,0)', whiteSpace: 'nowrap', border: 0 }}
                       />
-                      <label 
-                        htmlFor="photo-upload-input"
+                      <button 
+                        type="button"
                         className="btn-secondary" 
+                        onClick={() => document.getElementById('photo-upload-input')?.click()}
                         style={{ fontSize: '0.85rem', padding: '0.4rem 0.8rem', display: 'inline-flex', alignItems: 'center', gap: '0.3rem', cursor: 'pointer', margin: 0 }}
                       >
                         <ImagePlus size={16} /> Upload Photo
-                      </label>
+                      </button>
                       {cvData.photo && (
                         <button 
                           className="btn-text-danger" 
