@@ -165,12 +165,19 @@ function App() {
   const [customization, setCustomization] = useState(() => {
     const saved = localStorage.getItem('cvCustomizationDraft');
     if (saved) {
-      try { return JSON.parse(saved); } catch (e) {}
+      try { 
+        const parsed = JSON.parse(saved); 
+        if (!parsed.sectionOrder) {
+          parsed.sectionOrder = ['experience', 'education', 'skills', 'languages'];
+        }
+        return parsed;
+      } catch (e) {}
     }
     return {
       accentColor: '#ea580c', // Orange default
       fontPair: 'sans',
-      lineSpacing: 1.5
+      lineSpacing: 1.5,
+      sectionOrder: ['experience', 'education', 'skills', 'languages']
     };
   });
   const photoInputRef = useRef(null);
@@ -504,6 +511,21 @@ function App() {
         return {
           ...prevData,
           [targetSection]: arrayMove(prevData[targetSection], oldIndex, newIndex)
+        };
+      });
+    }
+  };
+
+  const handleSectionDragEnd = (event) => {
+    const { active, over } = event;
+    if (!over) return;
+    if (active.id !== over.id) {
+      setCustomization((prev) => {
+        const oldIndex = prev.sectionOrder.indexOf(active.id);
+        const newIndex = prev.sectionOrder.indexOf(over.id);
+        return {
+          ...prev,
+          sectionOrder: arrayMove(prev.sectionOrder, oldIndex, newIndex)
         };
       });
     }
@@ -1016,6 +1038,12 @@ function App() {
                   <LayoutTemplate size={18} /> Design
                 </button>
                 <button 
+                  className={`sidebar-btn ${activeTab === 'layout' ? 'active' : ''}`}
+                  onClick={() => setActiveTab('layout')}
+                >
+                  <GripVertical size={18} /> Section Layout
+                </button>
+                <button 
                   className={`sidebar-btn ${activeTab === 'personal' ? 'active' : ''}`}
                   onClick={() => setActiveTab('personal')}
                 >
@@ -1203,6 +1231,26 @@ function App() {
                     style={{ width: '100%', marginTop: '0.5rem' }}
                   />
                 </div>
+              </div>
+            )}
+
+            {/* TAB CONTENT: LAYOUT */}
+            {activeTab === 'layout' && (
+              <div className="editor-card">
+                <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', marginBottom: '1rem' }}>
+                  Drag and drop the sections below to reorder them in the main body of your CV.
+                </p>
+                <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleSectionDragEnd}>
+                  <SortableContext items={customization.sectionOrder || []} strategy={verticalListSortingStrategy}>
+                    {(customization.sectionOrder || []).map((sectionId) => (
+                      <SortableItem key={sectionId} id={sectionId}>
+                        <div style={{ padding: '0.75rem', background: '#fff', border: '1px solid var(--panel-border)', borderRadius: '6px', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', textTransform: 'capitalize' }}>
+                          <span style={{ marginLeft: '1.5rem', fontWeight: '500' }}>{sectionId}</span>
+                        </div>
+                      </SortableItem>
+                    ))}
+                  </SortableContext>
+                </DndContext>
               </div>
             )}
 
@@ -1822,90 +1870,112 @@ function App() {
                       )}
                     </div>
 
-                    {/* Experience Section */}
-                    {cvData.experience && cvData.experience.length > 0 && (
-                      <div className="cv-section">
-                        <div className="cv-section-header">
-                          <h3 className="cv-section-title">Experience</h3>
-                          <div className="cv-divider"></div>
-                        </div>
-                        {cvData.experience.map((job, jobIdx) => {
-                          if (!job.organization && !job.role) return null;
-                          return (
-                            <div key={jobIdx} className="cv-item" style={{ breakBefore: job.pageBreakBefore ? 'page' : 'auto', pageBreakBefore: job.pageBreakBefore ? 'always' : 'auto' }}>
-                              <div className="cv-item-header">
-                                <div className="cv-item-title-org">
-                                  <span className="cv-org">{job.organization || 'Company'}</span>
-                                  <span className="cv-role-separator">/</span>
-                                  <span className="cv-role">{job.role || 'Role'}</span>
-                                </div>
-                                <span className="cv-date">{job.dates || 'Dates'}</span>
-                              </div>
-                              {job.bullets && job.bullets.length > 0 && (
-                                <ul className="cv-bullets">
-                                  {job.bullets.map((bullet, bulletIdx) => (
-                                    bullet.trim() && <li key={bulletIdx}>{bullet}</li>
-                                  ))}
-                                </ul>
-                              )}
+                    {/* Dynamic Sections Array */}
+                    {(() => {
+                      const sections = {
+                        experience: cvData.experience && cvData.experience.length > 0 && (
+                          <div className="cv-section" key="experience">
+                            <div className="cv-section-header">
+                              <h3 className="cv-section-title">Experience</h3>
+                              <div className="cv-divider"></div>
                             </div>
-                          );
-                        })}
-                      </div>
-                    )}
-
-                    {/* Education Section */}
-                    {cvData.education && cvData.education.length > 0 && (
-                      <div className="cv-section">
-                        <div className="cv-section-header">
-                          <h3 className="cv-section-title">Education</h3>
-                          <div className="cv-divider"></div>
-                        </div>
-                        {cvData.education.map((edu, eduIdx) => {
-                          if (!edu.organization && !edu.role) return null;
-                          return (
-                            <div key={eduIdx} className="cv-item" style={{ breakBefore: edu.pageBreakBefore ? 'page' : 'auto', pageBreakBefore: edu.pageBreakBefore ? 'always' : 'auto' }}>
-                              <div className="cv-item-header">
-                                <div className="cv-item-title-org">
-                                  <span className="cv-role" style={{ fontWeight: 700 }}>{edu.role || 'Degree'}</span>
-                                  <span className="cv-role-separator">/</span>
-                                  <span className="cv-org">{edu.organization || 'Institution'}</span>
+                            {cvData.experience.map((job, jobIdx) => {
+                              if (!job.organization && !job.role) return null;
+                              return (
+                                <div key={jobIdx} className="cv-item" style={{ breakBefore: job.pageBreakBefore ? 'page' : 'auto', pageBreakBefore: job.pageBreakBefore ? 'always' : 'auto' }}>
+                                  <div className="cv-item-header">
+                                    <div className="cv-item-title-org">
+                                      <span className="cv-org">{job.organization || 'Company'}</span>
+                                      <span className="cv-role-separator">/</span>
+                                      <span className="cv-role">{job.role || 'Role'}</span>
+                                    </div>
+                                    <span className="cv-date">{job.dates || 'Dates'}</span>
+                                  </div>
+                                  {job.bullets && job.bullets.length > 0 && (
+                                    <ul className="cv-bullets">
+                                      {job.bullets.map((bullet, bulletIdx) => (
+                                        bullet.trim() && <li key={bulletIdx}>{bullet}</li>
+                                      ))}
+                                    </ul>
+                                  )}
                                 </div>
-                                <span className="cv-date">{edu.dates || 'Dates'}</span>
-                              </div>
-                              {edu.bullets && edu.bullets.length > 0 && (
-                                <ul className="cv-bullets">
-                                  {edu.bullets.map((bullet, bulletIdx) => (
-                                    bullet.trim() && <li key={bulletIdx}>{bullet}</li>
-                                  ))}
-                                </ul>
-                              )}
+                              );
+                            })}
+                          </div>
+                        ),
+                        education: cvData.education && cvData.education.length > 0 && (
+                          <div className="cv-section" key="education">
+                            <div className="cv-section-header">
+                              <h3 className="cv-section-title">Education</h3>
+                              <div className="cv-divider"></div>
                             </div>
-                          );
-                        })}
-                      </div>
-                    )}
+                            {cvData.education.map((edu, eduIdx) => {
+                              if (!edu.organization && !edu.role) return null;
+                              return (
+                                <div key={eduIdx} className="cv-item" style={{ breakBefore: edu.pageBreakBefore ? 'page' : 'auto', pageBreakBefore: edu.pageBreakBefore ? 'always' : 'auto' }}>
+                                  <div className="cv-item-header">
+                                    <div className="cv-item-title-org">
+                                      <span className="cv-role" style={{ fontWeight: 700 }}>{edu.role || 'Degree'}</span>
+                                      <span className="cv-role-separator">/</span>
+                                      <span className="cv-org">{edu.organization || 'Institution'}</span>
+                                    </div>
+                                    <span className="cv-date">{edu.dates || 'Dates'}</span>
+                                  </div>
+                                  {edu.bullets && edu.bullets.length > 0 && (
+                                    <ul className="cv-bullets">
+                                      {edu.bullets.map((bullet, bulletIdx) => (
+                                        bullet.trim() && <li key={bulletIdx}>{bullet}</li>
+                                      ))}
+                                    </ul>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        ),
+                        skills: cvData.skills && cvData.skills.length > 0 && (
+                          <div className="cv-section" key="skills">
+                            <div className="cv-section-header">
+                              <h3 className="cv-section-title">Tech Skills</h3>
+                              <div className="cv-divider"></div>
+                            </div>
+                            <div className="cv-skills-grid">
+                              {cvData.skills.map((skill, skillIdx) => {
+                                if (!skill.category || !skill.items) return null;
+                                return (
+                                  <div key={skillIdx} className="cv-skills-item">
+                                    <span className="cv-skills-category">{skill.category}: </span>
+                                    <span className="cv-skills-list">{skill.items}</span>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        ),
+                        languages: cvData.languages && cvData.languages.length > 0 && (
+                          <div className="cv-section" key="languages">
+                            <div className="cv-section-header">
+                              <h3 className="cv-section-title">Languages</h3>
+                              <div className="cv-divider"></div>
+                            </div>
+                            <div className="cv-languages-grid">
+                              {cvData.languages.map((lang, langIdx) => {
+                                if (!lang.name) return null;
+                                return (
+                                  <div key={langIdx} className="cv-language-item">
+                                    <span className="cv-language-name">{lang.name}</span>
+                                    {lang.proficiency && <span>: {lang.proficiency}</span>}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )
+                      };
 
-                    {/* Tech Skills Section */}
-                    {cvData.skills && cvData.skills.length > 0 && (
-                      <div className="cv-section">
-                        <div className="cv-section-header">
-                          <h3 className="cv-section-title">Tech Skills</h3>
-                          <div className="cv-divider"></div>
-                        </div>
-                        <div className="cv-skills-grid">
-                          {cvData.skills.map((skill, skillIdx) => {
-                            if (!skill.category || !skill.items) return null;
-                            return (
-                              <div key={skillIdx} className="cv-skills-item">
-                                <span className="cv-skills-category">{skill.category}: </span>
-                                <span className="cv-skills-list">{skill.items}</span>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    )}
+                      const order = customization.sectionOrder || ['experience', 'education', 'skills', 'languages'];
+                      return order.map(sectionId => sections[sectionId]);
+                    })()}
 
                     {/* Custom Sections Section */}
                     {cvData.customSections && cvData.customSections.length > 0 && (
@@ -1943,27 +2013,6 @@ function App() {
                           );
                         })}
                       </>
-                    )}
-
-                    {/* Languages Section */}
-                    {cvData.languages && cvData.languages.length > 0 && (
-                      <div className="cv-section">
-                        <div className="cv-section-header">
-                          <h3 className="cv-section-title">Languages</h3>
-                          <div className="cv-divider"></div>
-                        </div>
-                        <div className="cv-languages-grid">
-                          {cvData.languages.map((lang, langIdx) => {
-                            if (!lang.name) return null;
-                            return (
-                              <div key={langIdx} className="cv-language-item">
-                                <span className="cv-language-name">{lang.name}</span>
-                                {lang.proficiency && <span>: {lang.proficiency}</span>}
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
                     )}
                   </>
                 )}
@@ -2047,62 +2096,69 @@ function App() {
                         </div>
                       )}
 
-                      {cvData.experience && cvData.experience.length > 0 && (
-                        <div className="ts-section">
-                          <h3 className="ts-heading-right">Work Experience</h3>
-                          <div className="ts-divider-right"></div>
-                          {cvData.experience.map((job, jobIdx) => {
-                            if (!job.organization && !job.role) return null;
-                            return (
-                              <div key={jobIdx} className="ts-item" style={{ breakBefore: job.pageBreakBefore ? 'page' : 'auto', pageBreakBefore: job.pageBreakBefore ? 'always' : 'auto' }}>
-                                <div className="ts-item-header">
-                                  <div className="ts-item-title">
-                                    <span className="ts-role">{job.role}</span>
-                                    {job.organization && <span className="ts-org-sep"> - </span>}
-                                    <span className="ts-org">{job.organization}</span>
+                      {(() => {
+                        const sidebarMainSections = {
+                          experience: cvData.experience && cvData.experience.length > 0 && (
+                            <div className="ts-section" key="experience">
+                              <h3 className="ts-heading-right">Work Experience</h3>
+                              <div className="ts-divider-right"></div>
+                              {cvData.experience.map((job, jobIdx) => {
+                                if (!job.organization && !job.role) return null;
+                                return (
+                                  <div key={jobIdx} className="ts-item" style={{ breakBefore: job.pageBreakBefore ? 'page' : 'auto', pageBreakBefore: job.pageBreakBefore ? 'always' : 'auto' }}>
+                                    <div className="ts-item-header">
+                                      <div className="ts-item-title">
+                                        <span className="ts-role">{job.role}</span>
+                                        {job.organization && <span className="ts-org-sep"> - </span>}
+                                        <span className="ts-org">{job.organization}</span>
+                                      </div>
+                                      <div className="ts-date">{job.dates}</div>
+                                    </div>
+                                    {job.bullets && job.bullets.length > 0 && (
+                                      <ul className="ts-bullets">
+                                        {job.bullets.map((bullet, bulletIdx) => (
+                                          bullet.trim() && <li key={bulletIdx}>{bullet}</li>
+                                        ))}
+                                      </ul>
+                                    )}
                                   </div>
-                                  <div className="ts-date">{job.dates}</div>
-                                </div>
-                                {job.bullets && job.bullets.length > 0 && (
-                                  <ul className="ts-bullets">
-                                    {job.bullets.map((bullet, bulletIdx) => (
-                                      bullet.trim() && <li key={bulletIdx}>{bullet}</li>
-                                    ))}
-                                  </ul>
-                                )}
-                              </div>
-                            )
-                          })}
-                        </div>
-                      )}
+                                )
+                              })}
+                            </div>
+                          ),
+                          education: cvData.education && cvData.education.length > 0 && (
+                            <div className="ts-section" key="education">
+                              <h3 className="ts-heading-right">Education</h3>
+                              <div className="ts-divider-right"></div>
+                              {cvData.education.map((edu, eduIdx) => {
+                                if (!edu.organization && !edu.role) return null;
+                                return (
+                                  <div key={eduIdx} className="ts-item" style={{ breakBefore: edu.pageBreakBefore ? 'page' : 'auto', pageBreakBefore: edu.pageBreakBefore ? 'always' : 'auto' }}>
+                                    <div className="ts-item-header">
+                                      <div className="ts-item-title">
+                                        <span className="ts-role" style={{fontWeight: 700}}>{edu.role}</span>
+                                      </div>
+                                      <div className="ts-date">{edu.dates}</div>
+                                    </div>
+                                    <div className="ts-org" style={{fontStyle: 'italic', color: '#475569', marginBottom: '4px'}}>{edu.organization}</div>
+                                    {edu.bullets && edu.bullets.length > 0 && (
+                                      <ul className="ts-bullets">
+                                        {edu.bullets.map((bullet, bulletIdx) => (
+                                          bullet.trim() && <li key={bulletIdx}>{bullet}</li>
+                                        ))}
+                                      </ul>
+                                    )}
+                                  </div>
+                                )
+                              })}
+                            </div>
+                          )
+                        };
 
-                      {cvData.education && cvData.education.length > 0 && (
-                        <div className="ts-section">
-                          <h3 className="ts-heading-right">Education</h3>
-                          <div className="ts-divider-right"></div>
-                          {cvData.education.map((edu, eduIdx) => {
-                            if (!edu.organization && !edu.role) return null;
-                            return (
-                              <div key={eduIdx} className="ts-item" style={{ breakBefore: edu.pageBreakBefore ? 'page' : 'auto', pageBreakBefore: edu.pageBreakBefore ? 'always' : 'auto' }}>
-                                <div className="ts-item-header">
-                                  <div className="ts-item-title">
-                                    <span className="ts-role" style={{fontWeight: 700}}>{edu.role}</span>
-                                  </div>
-                                  <div className="ts-date">{edu.dates}</div>
-                                </div>
-                                <div className="ts-org" style={{fontStyle: 'italic', color: '#475569', marginBottom: '4px'}}>{edu.organization}</div>
-                                {edu.bullets && edu.bullets.length > 0 && (
-                                  <ul className="ts-bullets">
-                                    {edu.bullets.map((bullet, bulletIdx) => (
-                                      bullet.trim() && <li key={bulletIdx}>{bullet}</li>
-                                    ))}
-                                  </ul>
-                                )}
-                              </div>
-                            )
-                          })}
-                        </div>
-                      )}
+                        const order = (customization.sectionOrder || ['experience', 'education', 'skills', 'languages'])
+                                      .filter(s => ['experience', 'education'].includes(s));
+                        return order.map(sectionId => sidebarMainSections[sectionId]);
+                      })()}
                     </div>
                   </div>
                 )}
