@@ -4,8 +4,12 @@ import {
   FileText, FileDown, Plus, Trash2, Key, 
   Sparkles, Cpu, Briefcase, GraduationCap, Wrench, Info, RefreshCw,
   Globe, Lock, Download, User, Folder, CheckCircle,
-  ZoomIn, ZoomOut, Maximize2, LayoutTemplate, ImagePlus, ImageMinus
+  ZoomIn, ZoomOut, Maximize2, LayoutTemplate, ImagePlus, ImageMinus, GripVertical
 } from 'lucide-react';
+
+import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
+import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 
 // Custom inline SVG icons to avoid version inconsistencies in lucide-react brand icons
 const Linkedin = ({ size = 11, ...props }) => (
@@ -93,8 +97,49 @@ const sampleCVData = {
   customSections: []
 };
 
+function SortableItem({ id, children }) {
+  const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id });
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    position: 'relative'
+  };
+  
+  return (
+    <div ref={setNodeRef} style={style}>
+      <div 
+        {...attributes} 
+        {...listeners} 
+        style={{ 
+          position: 'absolute', 
+          right: '8px', 
+          top: '8px', 
+          padding: '4px',
+          cursor: 'grab', 
+          color: '#cbd5e1',
+          zIndex: 10,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          background: 'rgba(255,255,255,0.8)',
+          borderRadius: '4px'
+        }}
+      >
+        <GripVertical size={16} />
+      </div>
+      {children}
+    </div>
+  );
+}
+
 function App() {
-  const [cvData, setCvData] = useState(null);
+  const [cvData, setCvData] = useState(() => {
+    const saved = localStorage.getItem('cvDataDraft');
+    if (saved) {
+      try { return JSON.parse(saved); } catch (e) { return null; }
+    }
+    return null;
+  });
   const [, setRawText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
@@ -113,8 +158,52 @@ function App() {
   const [previewScale, setPreviewScale] = useState(1);
   const [autoFitScale, setAutoFitScale] = useState(1);
   const [manualZoom, setManualZoom] = useState(null); // null = auto-fit mode
-  const [cvTemplate, setCvTemplate] = useState('classic'); // 'classic' or 'sidebar'
+  const [cvTemplate, setCvTemplate] = useState(() => {
+    return localStorage.getItem('cvTemplateDraft') || 'classic';
+  });
+  const [customization, setCustomization] = useState(() => {
+    const saved = localStorage.getItem('cvCustomizationDraft');
+    if (saved) {
+      try { return JSON.parse(saved); } catch (e) {}
+    }
+    return {
+      accentColor: '#ea580c', // Orange default
+      fontPair: 'sans',
+      lineSpacing: 1.5
+    };
+  });
   const photoInputRef = useRef(null);
+
+  useEffect(() => {
+    if (cvData) {
+      let changed = false;
+      const newData = { ...cvData };
+      ['experience', 'education', 'skills', 'languages'].forEach(section => {
+        if (newData[section]) {
+          newData[section] = newData[section].map(item => {
+            if (!item.id) {
+              changed = true;
+              return { ...item, id: Math.random().toString(36).substring(2, 9) };
+            }
+            return item;
+          });
+        }
+      });
+      if (changed) {
+        setCvData(newData);
+      }
+    }
+  }, [cvData]);
+
+  useEffect(() => {
+    if (cvData) {
+      localStorage.setItem('cvDataDraft', JSON.stringify(cvData));
+    } else {
+      localStorage.removeItem('cvDataDraft');
+    }
+    localStorage.setItem('cvTemplateDraft', cvTemplate);
+    localStorage.setItem('cvCustomizationDraft', JSON.stringify(customization));
+  }, [cvData, cvTemplate, customization]);
 
   useEffect(() => {
     if (!previewPanelRef.current) return;
@@ -381,6 +470,42 @@ function App() {
       return newData;
     });
     if (photoInputRef.current) photoInputRef.current.value = '';
+  };
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 5,
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  const handleDragEnd = (event) => {
+    const { active, over } = event;
+    if (!over) return;
+    if (active.id !== over.id) {
+      setCvData((prevData) => {
+        let targetSection = null;
+        for (const section of ['experience', 'education', 'skills', 'languages']) {
+          if (prevData[section] && prevData[section].find(item => item.id === active.id)) {
+            targetSection = section;
+            break;
+          }
+        }
+        if (!targetSection) return prevData;
+        
+        const oldIndex = prevData[targetSection].findIndex(item => item.id === active.id);
+        const newIndex = prevData[targetSection].findIndex(item => item.id === over.id);
+        
+        return {
+          ...prevData,
+          [targetSection]: arrayMove(prevData[targetSection], oldIndex, newIndex)
+        };
+      });
+    }
   };
 
   const handleFieldChange = (section, index, field, value) => {
@@ -734,6 +859,7 @@ function App() {
   const handleReset = () => {
     setCvData(null);
     setRawText('');
+    localStorage.removeItem('cvDataDraft');
     setError('');
     setActiveTab('personal');
   };
@@ -1036,6 +1162,46 @@ function App() {
                     </div>
                   </div>
                 </div>
+
+                <div className="form-group" style={{ marginTop: '1.5rem', borderTop: '1px solid var(--panel-border)', paddingTop: '1.5rem' }}>
+                  <label>Accent Color</label>
+                  <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
+                    <input 
+                      type="color" 
+                      value={customization.accentColor} 
+                      onChange={(e) => setCustomization({...customization, accentColor: e.target.value})}
+                      style={{ width: '40px', height: '40px', padding: 0, border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+                    />
+                    <div style={{ display: 'flex', alignItems: 'center', fontSize: '0.9rem', color: 'var(--text-light)' }}>
+                      {customization.accentColor}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="form-group" style={{ marginTop: '1.5rem' }}>
+                  <label>Font Family</label>
+                  <select 
+                    value={customization.fontPair} 
+                    onChange={(e) => setCustomization({...customization, fontPair: e.target.value})}
+                    className="form-control"
+                    style={{ marginTop: '0.5rem' }}
+                  >
+                    <option value="sans">Modern Sans (Inter, Arial)</option>
+                    <option value="serif">Classic Serif (Merriweather, Garamond)</option>
+                    <option value="mono">Tech Mono (Roboto Mono, Fira Code)</option>
+                  </select>
+                </div>
+
+                <div className="form-group" style={{ marginTop: '1.5rem' }}>
+                  <label>Line Spacing: {customization.lineSpacing}</label>
+                  <input 
+                    type="range" 
+                    min="1.0" max="2.0" step="0.1" 
+                    value={customization.lineSpacing} 
+                    onChange={(e) => setCustomization({...customization, lineSpacing: parseFloat(e.target.value)})}
+                    style={{ width: '100%', marginTop: '0.5rem' }}
+                  />
+                </div>
               </div>
             )}
 
@@ -1133,8 +1299,11 @@ function App() {
             {/* TAB CONTENT: EXPERIENCE */}
             {activeTab === 'experience' && (
               <div className="editor-card">
-                {cvData.experience.map((job, jobIdx) => (
-                  <div key={jobIdx} className="repeater-item">
+                <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                  <SortableContext items={cvData.experience.map(item => item.id || '')} strategy={verticalListSortingStrategy}>
+                    {cvData.experience.map((job, jobIdx) => (
+                      <SortableItem key={job.id || jobIdx} id={job.id}>
+                        <div className="repeater-item">
                     <button 
                       type="button" 
                       className="remove-btn"
@@ -1173,6 +1342,18 @@ function App() {
                         className="form-input"
                       />
                     </div>
+                    
+                    <div className="form-group" style={{ marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <input 
+                        type="checkbox" 
+                        id={`page-break-exp-${jobIdx}`}
+                        checked={job.pageBreakBefore || false}
+                        onChange={(e) => handleFieldChange('experience', jobIdx, 'pageBreakBefore', e.target.checked)}
+                      />
+                      <label htmlFor={`page-break-exp-${jobIdx}`} style={{ margin: 0, fontWeight: 'normal', cursor: 'pointer', fontSize: '0.85rem', color: 'var(--text-light)' }}>
+                        Force page break before this job
+                      </label>
+                    </div>
 
                     <div className="form-group">
                       <label style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -1206,8 +1387,11 @@ function App() {
                         </div>
                       ))}
                     </div>
-                  </div>
+                    </div>
+                  </SortableItem>
                 ))}
+                </SortableContext>
+                </DndContext>
 
                 <button 
                   type="button" 
@@ -1222,8 +1406,11 @@ function App() {
             {/* TAB CONTENT: EDUCATION */}
             {activeTab === 'education' && (
               <div className="editor-card">
-                {cvData.education.map((edu, eduIdx) => (
-                  <div key={eduIdx} className="repeater-item">
+                <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                  <SortableContext items={cvData.education.map(item => item.id || '')} strategy={verticalListSortingStrategy}>
+                    {cvData.education.map((edu, eduIdx) => (
+                      <SortableItem key={edu.id || eduIdx} id={edu.id}>
+                        <div className="repeater-item">
                     <button 
                       type="button" 
                       className="remove-btn"
@@ -1263,7 +1450,10 @@ function App() {
                       />
                     </div>
                   </div>
+                  </SortableItem>
                 ))}
+                </SortableContext>
+                </DndContext>
 
                 <button 
                   type="button" 
@@ -1278,8 +1468,11 @@ function App() {
             {/* TAB CONTENT: SKILLS */}
             {activeTab === 'skills' && (
               <div className="editor-card">
-                {cvData.skills.map((skill, skillIdx) => (
-                  <div key={skillIdx} className="repeater-item">
+                <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                  <SortableContext items={cvData.skills.map(item => item.id || '')} strategy={verticalListSortingStrategy}>
+                    {cvData.skills.map((skill, skillIdx) => (
+                      <SortableItem key={skill.id || skillIdx} id={skill.id}>
+                        <div className="repeater-item">
                     <button 
                       type="button" 
                       className="remove-btn"
@@ -1310,7 +1503,10 @@ function App() {
                       />
                     </div>
                   </div>
+                  </SortableItem>
                 ))}
+                </SortableContext>
+                </DndContext>
 
                 <button 
                   type="button" 
@@ -1445,8 +1641,11 @@ function App() {
             {/* TAB CONTENT: LANGUAGES */}
             {activeTab === 'languages' && (
               <div className="editor-card">
-                {(cvData.languages || []).map((lang, langIdx) => (
-                  <div key={langIdx} className="repeater-item">
+                <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                  <SortableContext items={cvData.languages.map(item => item.id || '')} strategy={verticalListSortingStrategy}>
+                    {cvData.languages.map((lang, langIdx) => (
+                      <SortableItem key={lang.id || langIdx} id={lang.id}>
+                        <div className="repeater-item">
                     <button 
                       type="button" 
                       className="remove-btn"
@@ -1477,7 +1676,10 @@ function App() {
                       />
                     </div>
                   </div>
+                  </SortableItem>
                 ))}
+                </SortableContext>
+                </DndContext>
 
                 <button 
                   type="button" 
@@ -1532,9 +1734,16 @@ function App() {
                 }}
               >
               <div 
-                className={`cv-page ${cvTemplate === 'sidebar' ? 'template-sidebar-page' : ''}`}
+                className={`cv-page ${cvTemplate === 'sidebar' ? 'template-sidebar-page' : ''} font-${customization.fontPair}`}
                 ref={cvPageRef} 
-                style={{ '--cv-page-height': `${pageCount * 297}mm` }}
+                style={{ 
+                  '--cv-page-height': `${pageCount * 297}mm`,
+                  '--accent-color': customization.accentColor,
+                  fontFamily: customization.fontPair === 'sans' ? "'Inter', 'Roboto', 'Arial', sans-serif" :
+                              customization.fontPair === 'serif' ? "'Merriweather', 'Garamond', 'Times New Roman', serif" :
+                              "'Roboto Mono', 'Fira Code', 'Courier New', monospace",
+                  lineHeight: customization.lineSpacing
+                }}
               >
                 {/* Visual Page Break Dividers (Preview Only) */}
                 {Array.from({ length: pageCount - 1 }).map((_, idx) => (
@@ -1626,7 +1835,7 @@ function App() {
                         {cvData.experience.map((job, jobIdx) => {
                           if (!job.organization && !job.role) return null;
                           return (
-                            <div key={jobIdx} className="cv-item">
+                            <div key={jobIdx} className="cv-item" style={{ breakBefore: job.pageBreakBefore ? 'page' : 'auto', pageBreakBefore: job.pageBreakBefore ? 'always' : 'auto' }}>
                               <div className="cv-item-header">
                                 <div className="cv-item-title-org">
                                   <span className="cv-org">{job.organization || 'Company'}</span>
@@ -1658,7 +1867,7 @@ function App() {
                         {cvData.education.map((edu, eduIdx) => {
                           if (!edu.organization && !edu.role) return null;
                           return (
-                            <div key={eduIdx} className="cv-item">
+                            <div key={eduIdx} className="cv-item" style={{ breakBefore: edu.pageBreakBefore ? 'page' : 'auto', pageBreakBefore: edu.pageBreakBefore ? 'always' : 'auto' }}>
                               <div className="cv-item-header">
                                 <div className="cv-item-title-org">
                                   <span className="cv-role" style={{ fontWeight: 700 }}>{edu.role || 'Degree'}</span>
@@ -1848,7 +2057,7 @@ function App() {
                           {cvData.experience.map((job, jobIdx) => {
                             if (!job.organization && !job.role) return null;
                             return (
-                              <div key={jobIdx} className="ts-item">
+                              <div key={jobIdx} className="ts-item" style={{ breakBefore: job.pageBreakBefore ? 'page' : 'auto', pageBreakBefore: job.pageBreakBefore ? 'always' : 'auto' }}>
                                 <div className="ts-item-header">
                                   <div className="ts-item-title">
                                     <span className="ts-role">{job.role}</span>
@@ -1877,7 +2086,7 @@ function App() {
                           {cvData.education.map((edu, eduIdx) => {
                             if (!edu.organization && !edu.role) return null;
                             return (
-                              <div key={eduIdx} className="ts-item">
+                              <div key={eduIdx} className="ts-item" style={{ breakBefore: edu.pageBreakBefore ? 'page' : 'auto', pageBreakBefore: edu.pageBreakBefore ? 'always' : 'auto' }}>
                                 <div className="ts-item-header">
                                   <div className="ts-item-title">
                                     <span className="ts-role" style={{fontWeight: 700}}>{edu.role}</span>
