@@ -1005,8 +1005,8 @@ function App() {
 
           <div className="landing-features">
             <div className="feature-item">
-              <div className="feature-icon"><Sparkles size={18} /></div>
-              <span>AI-Powered Formatting</span>
+              <div className="feature-icon"><CheckCircle size={18} /></div>
+              <span>Instant Formatting</span>
             </div>
             <div className="feature-item">
               <div className="feature-icon"><FileText size={18} /></div>
@@ -1014,7 +1014,7 @@ function App() {
             </div>
             <div className="feature-item">
               <div className="feature-icon"><Download size={18} /></div>
-              <span>Export to PDF/DOCX</span>
+              <span>Export to PDF</span>
             </div>
           </div>
         </main>
