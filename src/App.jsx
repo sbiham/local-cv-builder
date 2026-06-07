@@ -3,7 +3,8 @@ import {
   Mail, Phone, MapPin, UploadCloud, 
   FileText, FileDown, Plus, Trash2, Key, 
   Sparkles, Cpu, Briefcase, GraduationCap, Wrench, Info, RefreshCw,
-  Globe
+  Globe, Lock, Download, User, Folder, CheckCircle,
+  ZoomIn, ZoomOut, Maximize2, LayoutTemplate, ImagePlus, ImageMinus
 } from 'lucide-react';
 
 // Custom inline SVG icons to avoid version inconsistencies in lucide-react brand icons
@@ -108,6 +109,54 @@ function App() {
   const [sectionIdToDelete, setSectionIdToDelete] = useState(null);
   const fileInputRef = useRef(null);
   const cvPageRef = useRef(null);
+  const previewPanelRef = useRef(null);
+  const [previewScale, setPreviewScale] = useState(1);
+  const [autoFitScale, setAutoFitScale] = useState(1);
+  const [manualZoom, setManualZoom] = useState(null); // null = auto-fit mode
+  const [cvTemplate, setCvTemplate] = useState('classic'); // 'classic' or 'sidebar'
+  const photoInputRef = useRef(null);
+
+  useEffect(() => {
+    if (!previewPanelRef.current) return;
+    const observer = new ResizeObserver(entries => {
+      for (let entry of entries) {
+        const panelWidth = entry.contentRect.width;
+        const panelHeight = entry.contentRect.height;
+        const a4Width = 794;
+        const a4Height = pageCount * 1123;
+        const paddedWidth = a4Width + 40;
+        const paddedHeight = a4Height + 40;
+        const scaleW = panelWidth > 0 ? Math.min(panelWidth / paddedWidth, 1) : 1;
+        const scaleH = panelHeight > 0 ? Math.min(panelHeight / paddedHeight, 1) : 1;
+        const fitScale = Math.min(scaleW, scaleH);
+        setAutoFitScale(fitScale);
+        if (manualZoom === null) {
+          setPreviewScale(fitScale);
+        }
+      }
+    });
+    observer.observe(previewPanelRef.current);
+    return () => observer.disconnect();
+  }, [cvData, pageCount, manualZoom]);
+
+  const handleZoomIn = () => {
+    const current = manualZoom ?? autoFitScale;
+    const newZoom = Math.min(current + 0.1, 1.5);
+    setManualZoom(newZoom);
+    setPreviewScale(newZoom);
+  };
+
+  const handleZoomOut = () => {
+    const current = manualZoom ?? autoFitScale;
+    const newZoom = Math.max(current - 0.1, 0.2);
+    setManualZoom(newZoom);
+    setPreviewScale(newZoom);
+  };
+
+  const handleZoomFit = () => {
+    setManualZoom(null);
+    setPreviewScale(autoFitScale);
+  };
 
   const updatePageCount = () => {
     if (cvPageRef.current) {
@@ -310,6 +359,28 @@ function App() {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handlePhotoUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      setCvData(prev => ({
+        ...prev,
+        photo: event.target.result
+      }));
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleRemovePhoto = () => {
+    setCvData(prev => {
+      const newData = { ...prev };
+      delete newData.photo;
+      return newData;
+    });
+    if (photoInputRef.current) photoInputRef.current.value = '';
   };
 
   const handleFieldChange = (section, index, field, value) => {
@@ -595,6 +666,9 @@ function App() {
         throw new Error('Preview element not found');
       }
 
+      // Ensure fonts are fully loaded before capturing to prevent kerning/scrambling issues
+      await document.fonts.ready;
+
       // Generate canvas
       const canvas = await html2canvas(element, {
         scale: 2, // Retain high resolution
@@ -607,6 +681,14 @@ function App() {
             cvPage.style.boxShadow = 'none';
             cvPage.style.border = 'none';
             cvPage.style.margin = '0';
+          }
+          const container = clonedDoc.querySelector('.cv-preview-container');
+          if (container) {
+            container.style.transform = 'none';
+          }
+          const wrapper = clonedDoc.querySelector('.cv-scale-wrapper');
+          if (wrapper) {
+            wrapper.style.transform = 'none';
           }
           const dividers = clonedDoc.querySelectorAll('.cv-page-divider');
           dividers.forEach(div => div.style.display = 'none');
@@ -646,7 +728,7 @@ function App() {
   };
 
   const triggerUploadClick = () => {
-    fileInputRef.current.click();
+    document.getElementById('resume-upload')?.click();
   };
 
   const handleReset = () => {
@@ -659,9 +741,9 @@ function App() {
   return (
     <div className="app-container">
       <header className="app-header">
-        <div className="brand">
-          <FileText className="brand-icon" size={28} color="#c2410c" />
-          <h1>Premium CV Formatter</h1>
+        <div className="brand" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+          <img src="/logo.png" alt="ElevateCV Logo" style={{ height: '36px', width: '36px', borderRadius: '6px' }} />
+          <h1>ElevateCV</h1>
         </div>
         <div className="api-key-container">
           <Key size={16} color="#94a3b8" />
@@ -688,77 +770,106 @@ function App() {
 
       {/* 1. INITIAL UPLOAD STATE */}
       {!cvData && (
-        <main className="upload-workspace">
-          <h2 style={{ fontFamily: 'Raleway', fontWeight: 700, marginBottom: '0.5rem', color: 'var(--text-light)' }}>
-            Transform Your CV Layout
-          </h2>
-          <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem', marginBottom: '1.5rem' }}>
-            Upload a DOCX or PDF resume to extract its details and format them into the Gadi Manor premium structure.
-          </p>
-
-          {isLoading ? (
-            <div style={{ padding: '2rem' }}>
-              <div className="loading-spinner"></div>
-              <p style={{ color: 'var(--accent-blue)', marginTop: '1rem', fontWeight: 600 }}>
-                {isAIEnabled && apiKey ? 'AI-powered parser extracting contents...' : 'Parsing CV contents client-side...'}
+        <main className="landing-container">
+          <div className="landing-split">
+            <div className="landing-text-section">
+              <h1 className="landing-headline">
+                Instant Professional<br />
+                Resume<br />
+                Formatting.<br />
+                Secure. Fast.
+              </h1>
+              <p className="landing-subhead">
+                Transform your CV into a polished, modern resume in seconds. Simply upload your document and let our tool do the work.
               </p>
             </div>
-          ) : (
-            <>
-              <div 
-                className={`dropzone ${dragActive ? 'active' : ''}`}
-                onDragEnter={handleDrag}
-                onDragLeave={handleDrag}
-                onDragOver={handleDrag}
-                onDrop={handleDrop}
-                onClick={triggerUploadClick}
-              >
-                <input 
-                  type="file" 
-                  ref={fileInputRef}
-                  onChange={handleFileChange}
-                  accept=".docx,.pdf"
-                  style={{ display: 'none' }}
-                />
-                <UploadCloud size={48} className="dropzone-icon" />
-                <p style={{ fontWeight: 600, color: 'var(--text-light)' }}>
-                  Drag and drop your file here, or <span style={{ color: 'var(--accent-blue)' }}>browse</span>
-                </p>
-                <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                  Supports DOCX and PDF (standard readable text)
-                </p>
-              </div>
-              <div style={{ marginTop: '1.2rem', display: 'flex', justifyContent: 'center' }}>
-                <button 
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setCvData(sampleCVData);
-                  }}
-                  className="btn-secondary"
-                  style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer', fontSize: '0.85rem', padding: '0.5rem 1.2rem', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)' }}
-                >
-                  <Sparkles size={14} color="#c2410c" /> Try with Sample CV Data
-                </button>
-              </div>
-            </>
-          )}
+            
+            <div className="landing-card-section">
+              <div className="upload-workspace">
+                {isLoading ? (
+                  <div style={{ padding: '4rem 2rem' }}>
+                    <div className="loading-spinner"></div>
+                    <p style={{ color: 'var(--accent-orange)', marginTop: '1.5rem', fontWeight: 600 }}>
+                      {isAIEnabled && apiKey ? 'AI-powered parser extracting contents...' : 'Parsing CV contents client-side...'}
+                    </p>
+                  </div>
+                ) : (
+                  <>
+                    <input 
+                      type="file" 
+                      id="resume-upload"
+                      onChange={handleFileChange}
+                      accept=".docx,.pdf"
+                      style={{ display: 'none' }}
+                    />
+                    <div 
+                      className={`dropzone ${dragActive ? 'active' : ''}`}
+                      onDragEnter={handleDrag}
+                      onDragLeave={handleDrag}
+                      onDragOver={handleDrag}
+                      onDrop={handleDrop}
+                      onClick={triggerUploadClick}
+                    >
+                      <FileText size={48} color="#fdba74" strokeWidth={1.5} style={{ marginBottom: '1rem' }} />
+                      <p style={{ fontWeight: 600, color: 'var(--text-light)', fontSize: '1.1rem' }}>
+                        Drag & Drop your resume<br />(PDF, DOCX) here
+                      </p>
+                      
+                      <label 
+                        htmlFor="resume-upload"
+                        className="btn-primary"
+                        onClick={(e) => { e.stopPropagation(); }}
+                        style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem', margin: '1.5rem 0', padding: '0.6rem 1.5rem', borderRadius: '8px', cursor: 'pointer' }}
+                      >
+                        <UploadCloud size={16} /> Browse Files
+                      </label>
+                      
+                      <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                        Supports up to 25 MB
+                      </p>
+                    </div>
+                    <div style={{ marginTop: '1.2rem', display: 'flex', justifyContent: 'center' }}>
+                      <button 
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setCvData(sampleCVData);
+                        }}
+                        className="btn-secondary"
+                        style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer', fontSize: '0.85rem', padding: '0.5rem 1.2rem', background: '#f8fafc', border: '1px solid #e2e8f0', color: '#0f172a' }}
+                      >
+                        <Sparkles size={14} color="#f97316" /> Try with Sample CV Data
+                      </button>
+                    </div>
+                  </>
+                )}
 
-          {error && (
-            <div style={{ marginTop: '1.5rem', padding: '1rem', background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.2)', borderRadius: '8px', color: '#ef4444', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <Info size={16} style={{ flexShrink: 0 }} />
-              <span style={{ textAlign: 'left' }}>{error}</span>
+                {error && (
+                  <div style={{ marginTop: '1.5rem', padding: '1rem', background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.2)', borderRadius: '8px', color: '#ef4444', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <Info size={16} style={{ flexShrink: 0 }} />
+                    <span style={{ textAlign: 'left' }}>{error}</span>
+                  </div>
+                )}
+              </div>
+              <p className="security-notice">
+                <Lock size={14} /> Your data is secure & private (local processing)
+              </p>
             </div>
-          )}
+          </div>
 
-          <div style={{ marginTop: '2.5rem', textAlign: 'left', width: '100%', background: 'rgba(194, 65, 12, 0.03)', padding: '1rem', borderRadius: '8px', border: '1px solid rgba(194, 65, 12, 0.15)' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem', color: 'var(--accent-blue)' }}>
-              <Sparkles size={16} />
-              <span style={{ fontSize: '0.85rem', fontWeight: 600, uppercase: 'true' }}>Pro Tip</span>
+          <div className="landing-features">
+            <div className="feature-item">
+              <div className="feature-icon"><Sparkles size={18} /></div>
+              <span>AI-Powered Formatting</span>
             </div>
-            <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', lineHeight: 1.4 }}>
-              Adding a Gemini API Key in the top right enables deep layout understanding. It will extract complex bullet points, separate company names from roles, and map skills accurately. (API key is stored locally in your browser).
-            </p>
+            <div className="feature-item">
+              <div className="feature-icon"><FileText size={18} /></div>
+              <span>Premium Layouts</span>
+            </div>
+            <div className="feature-item">
+              <div className="feature-icon"><Download size={18} /></div>
+              <span>Export to PDF/DOCX</span>
+            </div>
           </div>
         </main>
       )}
@@ -766,72 +877,166 @@ function App() {
       {/* 2. DUAL EDITOR / PREVIEW WORKSPACE */}
       {cvData && (
         <main className="workspace">
-          {/* Left panel: Form Editor */}
-          <section className="editor-panel">
-            <div className="tabs-header">
-              <button 
-                className={`tab-btn ${activeTab === 'personal' ? 'active' : ''}`}
-                onClick={() => setActiveTab('personal')}
-              >
-                <Cpu size={16} /> Contact
-              </button>
-              <button 
-                className={`tab-btn ${activeTab === 'summary' ? 'active' : ''}`}
-                onClick={() => setActiveTab('summary')}
-              >
-                <Info size={16} /> Summary
-              </button>
-              <button 
-                className={`tab-btn ${activeTab === 'experience' ? 'active' : ''}`}
-                onClick={() => setActiveTab('experience')}
-              >
-                <Briefcase size={16} /> Work
-              </button>
-              <button 
-                className={`tab-btn ${activeTab === 'education' ? 'active' : ''}`}
-                onClick={() => setActiveTab('education')}
-              >
-                <GraduationCap size={16} /> School
-              </button>
-              <button 
-                className={`tab-btn ${activeTab === 'skills' ? 'active' : ''}`}
-                onClick={() => setActiveTab('skills')}
-              >
-                <Wrench size={16} /> Skills
-              </button>
-              <button 
-                className={`tab-btn ${activeTab === 'languages' ? 'active' : ''}`}
-                onClick={() => setActiveTab('languages')}
-              >
-                <Globe size={16} /> Languages
-              </button>
-              {(cvData.customSections || []).map(section => (
-                <button
-                  key={section.id}
-                  className={`tab-btn ${activeTab === section.id ? 'active' : ''}`}
-                  onClick={() => setActiveTab(section.id)}
+          {/* Left panel: Sidebar Menu */}
+          <div className="sidebar-wrapper">
+            <aside className="sidebar-menu">
+              <h2 className="sidebar-title">Resume Builder</h2>
+              <nav className="sidebar-nav">
+                <button 
+                  className={`sidebar-btn ${activeTab === 'design' ? 'active' : ''}`}
+                  onClick={() => setActiveTab('design')}
                 >
-                  <Sparkles size={16} color="#c2410c" /> {section.title || 'Section'}
+                  <LayoutTemplate size={18} /> Design
                 </button>
-              ))}
-              <button 
-                type="button"
-                className="tab-btn add-sec-btn"
-                style={{ 
-                  color: 'var(--accent-orange)', 
-                  border: '1px dashed rgba(194, 65, 12, 0.4)', 
-                  background: 'rgba(194, 65, 12, 0.05)',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.4rem',
-                  fontWeight: 600
-                }}
-                onClick={handleAddCustomSection}
-              >
-                <Plus size={14} /> Add Section
-              </button>
-            </div>
+                <button 
+                  className={`sidebar-btn ${activeTab === 'personal' ? 'active' : ''}`}
+                  onClick={() => setActiveTab('personal')}
+                >
+                  <User size={18} /> Profile
+                </button>
+                <button 
+                  className={`sidebar-btn ${activeTab === 'summary' ? 'active' : ''}`}
+                  onClick={() => setActiveTab('summary')}
+                >
+                  <FileText size={18} /> Summary
+                </button>
+                <button 
+                  className={`sidebar-btn ${activeTab === 'experience' ? 'active' : ''}`}
+                  onClick={() => setActiveTab('experience')}
+                >
+                  <Briefcase size={18} /> Work Experience
+                </button>
+                <button 
+                  className={`sidebar-btn ${activeTab === 'education' ? 'active' : ''}`}
+                  onClick={() => setActiveTab('education')}
+                >
+                  <GraduationCap size={18} /> Education
+                </button>
+                <button 
+                  className={`sidebar-btn ${activeTab === 'skills' ? 'active' : ''}`}
+                  onClick={() => setActiveTab('skills')}
+                >
+                  <Wrench size={18} /> Skills
+                </button>
+                <button 
+                  className={`sidebar-btn ${activeTab === 'languages' ? 'active' : ''}`}
+                  onClick={() => setActiveTab('languages')}
+                >
+                  <Globe size={18} /> Languages
+                </button>
+                {(cvData.customSections || []).map(section => (
+                  <button
+                    key={section.id}
+                    className={`sidebar-btn ${activeTab === section.id ? 'active' : ''}`}
+                    onClick={() => setActiveTab(section.id)}
+                  >
+                    <Folder size={18} /> {section.title || 'Section'}
+                  </button>
+                ))}
+                <button 
+                  type="button"
+                  className="sidebar-btn add-sec-btn"
+                  style={{ 
+                    color: 'var(--accent-orange)', 
+                    border: '1px dashed rgba(249, 115, 22, 0.4)', 
+                    background: 'transparent',
+                    marginTop: '1rem'
+                  }}
+                  onClick={handleAddCustomSection}
+                >
+                  <Plus size={14} /> Add Section
+                </button>
+              </nav>
+            </aside>
+          </div>
+
+          {/* Middle panel: Form Editor */}
+          <section className="editor-panel">
+            {/* TAB CONTENT: DESIGN */}
+            {activeTab === 'design' && (
+              <div className="editor-card">
+                <h3 className="editor-card-title"><LayoutTemplate size={16} /> Template & Style</h3>
+                <div className="form-group" style={{ marginBottom: '1.5rem' }}>
+                  <label>Select Template</label>
+                  <div className="template-selector" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginTop: '0.5rem' }}>
+                    <button 
+                      className={`template-btn ${cvTemplate === 'classic' ? 'active' : ''}`}
+                      onClick={() => setCvTemplate('classic')}
+                      style={{ padding: '1rem', border: `2px solid ${cvTemplate === 'classic' ? 'var(--accent-orange)' : 'var(--panel-border)'}`, borderRadius: '8px', background: cvTemplate === 'classic' ? 'rgba(249, 115, 22, 0.05)' : '#fff', cursor: 'pointer', textAlign: 'center', transition: 'all 0.2s ease' }}
+                    >
+                      <div style={{ height: '60px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '4px', marginBottom: '0.5rem', display: 'flex', flexDirection: 'column', padding: '4px', gap: '4px' }}>
+                        <div style={{ height: '8px', background: '#94a3b8', width: '40%', borderRadius: '2px' }}></div>
+                        <div style={{ height: '2px', background: '#cbd5e1', width: '100%', borderRadius: '1px' }}></div>
+                        <div style={{ height: '4px', background: '#e2e8f0', width: '100%', borderRadius: '1px' }}></div>
+                        <div style={{ height: '4px', background: '#e2e8f0', width: '80%', borderRadius: '1px' }}></div>
+                      </div>
+                      <span style={{ fontWeight: '600', fontSize: '0.9rem', color: cvTemplate === 'classic' ? 'var(--accent-orange)' : 'var(--text-light)' }}>Classic</span>
+                    </button>
+                    <button 
+                      className={`template-btn ${cvTemplate === 'sidebar' ? 'active' : ''}`}
+                      onClick={() => setCvTemplate('sidebar')}
+                      style={{ padding: '1rem', border: `2px solid ${cvTemplate === 'sidebar' ? 'var(--accent-orange)' : 'var(--panel-border)'}`, borderRadius: '8px', background: cvTemplate === 'sidebar' ? 'rgba(249, 115, 22, 0.05)' : '#fff', cursor: 'pointer', textAlign: 'center', transition: 'all 0.2s ease' }}
+                    >
+                      <div style={{ height: '60px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '4px', marginBottom: '0.5rem', display: 'flex', gap: '4px' }}>
+                        <div style={{ width: '30%', background: '#e2e8f0', height: '100%', borderTopLeftRadius: '3px', borderBottomLeftRadius: '3px', padding: '4px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px' }}>
+                          <div style={{ width: '12px', height: '12px', borderRadius: '50%', background: '#94a3b8' }}></div>
+                          <div style={{ width: '100%', height: '2px', background: '#cbd5e1', marginTop: '2px' }}></div>
+                        </div>
+                        <div style={{ width: '70%', height: '100%', padding: '4px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                          <div style={{ height: '6px', background: '#94a3b8', width: '60%', borderRadius: '2px' }}></div>
+                          <div style={{ height: '4px', background: '#e2e8f0', width: '100%', borderRadius: '1px' }}></div>
+                          <div style={{ height: '4px', background: '#e2e8f0', width: '80%', borderRadius: '1px' }}></div>
+                        </div>
+                      </div>
+                      <span style={{ fontWeight: '600', fontSize: '0.9rem', color: cvTemplate === 'sidebar' ? 'var(--accent-orange)' : 'var(--text-light)' }}>Modern Sidebar</span>
+                    </button>
+                  </div>
+                </div>
+                
+                <div className="form-group">
+                  <label>Profile Photo</label>
+                  <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '0.75rem' }}>Only visible in the "Modern Sidebar" template.</p>
+                  
+                  <div style={{ display: 'flex', gap: '1.5rem', alignItems: 'center' }}>
+                    <div style={{ 
+                      width: '80px', height: '80px', borderRadius: '50%', 
+                      background: cvData.photo ? `url(${cvData.photo}) center/cover` : '#f1f5f9',
+                      border: '2px solid var(--panel-border)',
+                      display: 'flex', justifyContent: 'center', alignItems: 'center',
+                      overflow: 'hidden', flexShrink: 0
+                    }}>
+                      {!cvData.photo && <User size={32} color="#94a3b8" />}
+                    </div>
+                    
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                      <input 
+                        type="file" 
+                        id="photo-upload-input"
+                        accept="image/*" 
+                        onChange={handlePhotoUpload}
+                        style={{ display: 'none' }}
+                      />
+                      <label 
+                        htmlFor="photo-upload-input"
+                        className="btn-secondary" 
+                        style={{ fontSize: '0.85rem', padding: '0.4rem 0.8rem', display: 'inline-flex', alignItems: 'center', gap: '0.3rem', cursor: 'pointer', margin: 0 }}
+                      >
+                        <ImagePlus size={16} /> Upload Photo
+                      </label>
+                      {cvData.photo && (
+                        <button 
+                          className="btn-text-danger" 
+                          onClick={handleRemovePhoto}
+                          style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.5rem', background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: '0.85rem' }}
+                        >
+                          <ImageMinus size={16} /> Remove Photo
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* TAB CONTENT: PERSONAL */}
             {activeTab === 'personal' && (
@@ -1291,17 +1496,42 @@ function App() {
               <button onClick={downloadPdf} className="btn-primary" disabled={isLoading}>
                 <FileDown size={16} /> Download PDF
               </button>
-              <button onClick={downloadDocx} className="btn-primary" disabled={isLoading}>
-                <FileDown size={16} /> Download DOCX
-              </button>
             </div>
           </section>
 
           {/* Right panel: A4 CV Preview */}
-          <section className="preview-panel">
-            <div className="cv-preview-container">
+          <section className="preview-panel" ref={previewPanelRef}>
+            {/* Zoom Toolbar */}
+            <div className="zoom-toolbar">
+              <button className="zoom-btn" onClick={handleZoomOut} title="Zoom Out">
+                <ZoomOut size={16} />
+              </button>
+              <span className="zoom-level">{Math.round(previewScale * 100)}%</span>
+              <button className="zoom-btn" onClick={handleZoomIn} title="Zoom In">
+                <ZoomIn size={16} />
+              </button>
+              <button className={`zoom-btn ${manualZoom === null ? 'active' : ''}`} onClick={handleZoomFit} title="Fit to Page">
+                <Maximize2 size={16} />
+              </button>
+            </div>
+            <div 
+              className="cv-scale-wrapper"
+              style={{
+                width: `${794 * previewScale}px`,
+                height: `${pageCount * 1123 * previewScale}px`,
+                margin: '0 auto'
+              }}
+            >
               <div 
-                className="cv-page" 
+                className="cv-preview-container"
+                style={{
+                  transform: `scale(${previewScale})`,
+                  transformOrigin: 'top left',
+                  width: '794px'
+                }}
+              >
+              <div 
+                className={`cv-page ${cvTemplate === 'sidebar' ? 'template-sidebar-page' : ''}`}
                 ref={cvPageRef} 
                 style={{ '--cv-page-height': `${pageCount * 297}mm` }}
               >
@@ -1315,216 +1545,362 @@ function App() {
                     <span>PAGE {idx + 1} BREAK</span>
                   </div>
                 ))}
-                {/* CV Header */}
-                <div className="cv-header">
-                  <div className="cv-name-row">
-                    <span className="cv-name">{cvData.name || 'Your Name'}</span>
-                    {(cvData.name && cvData.title) && <span className="cv-name-separator"></span>}
-                    <span className="cv-title">{cvData.title || 'Specialization'}</span>
-                  </div>
-                  
-                  <div className="cv-subtitle-row">
-                    {cvData.phone && (
-                      <div className="cv-subtitle-item">
-                        <Phone size={11} />
-                        <span>{cvData.phone}</span>
-                      </div>
-                    )}
-                    {(cvData.phone && cvData.email) && <span className="cv-subtitle-bullet">•</span>}
-                    {cvData.email && (
-                      <div className="cv-subtitle-item">
-                        <Mail size={11} />
-                        <span>{cvData.email}</span>
-                      </div>
-                    )}
-                    {(cvData.email && cvData.location) && <span className="cv-subtitle-bullet">•</span>}
-                    {cvData.location && (
-                      <div className="cv-subtitle-item">
-                        <MapPin size={11} />
-                        <span>{cvData.location}</span>
-                      </div>
-                    )}
-                    {(cvData.location && cvData.linkedin) && <span className="cv-subtitle-bullet">•</span>}
-                    {cvData.linkedin && (
-                      <div className="cv-subtitle-item">
-                        <Linkedin size={11} />
-                        <a 
-                          href={cvData.linkedin.trim().startsWith('http') ? cvData.linkedin.trim() : `https://${cvData.linkedin.trim()}`} 
-                          target="_blank" 
-                          rel="noopener noreferrer" 
-                          style={{ color: 'inherit', textDecoration: 'underline' }}
-                        >
-                          Linkedin
-                        </a>
-                      </div>
-                    )}
-                    {(cvData.linkedin && cvData.github) && <span className="cv-subtitle-bullet">•</span>}
-                    {cvData.github && (
-                      <div className="cv-subtitle-item">
-                        <Github size={11} />
-                        <a 
-                          href={cvData.github.trim().startsWith('http') ? cvData.github.trim() : `https://${cvData.github.trim()}`} 
-                          target="_blank" 
-                          rel="noopener noreferrer" 
-                          style={{ color: 'inherit', textDecoration: 'underline' }}
-                        >
-                          Github
-                        </a>
-                      </div>
-                    )}
-                  </div>
-
-                  {cvData.summary && (
-                    <div className="cv-summary">
-                      {cvData.summary}
-                    </div>
-                  )}
-                </div>
-
-                {/* Experience Section */}
-                {cvData.experience && cvData.experience.length > 0 && (
-                  <div className="cv-section">
-                    <div className="cv-section-header">
-                      <h3 className="cv-section-title">Experience</h3>
-                      <div className="cv-divider"></div>
-                    </div>
-                    {cvData.experience.map((job, jobIdx) => {
-                      if (!job.organization && !job.role) return null;
-                      return (
-                        <div key={jobIdx} className="cv-item">
-                          <div className="cv-item-header">
-                            <div className="cv-item-title-org">
-                              <span className="cv-org">{job.organization || 'Company'}</span>
-                              <span className="cv-role-separator">/</span>
-                              <span className="cv-role">{job.role || 'Role'}</span>
-                            </div>
-                            <span className="cv-date">{job.dates || 'Dates'}</span>
-                          </div>
-                          {job.bullets && job.bullets.length > 0 && (
-                            <ul className="cv-bullets">
-                              {job.bullets.map((bullet, bulletIdx) => (
-                                bullet.trim() && <li key={bulletIdx}>{bullet}</li>
-                              ))}
-                            </ul>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-
-                {/* Education Section */}
-                {cvData.education && cvData.education.length > 0 && (
-                  <div className="cv-section">
-                    <div className="cv-section-header">
-                      <h3 className="cv-section-title">Education</h3>
-                      <div className="cv-divider"></div>
-                    </div>
-                    {cvData.education.map((edu, eduIdx) => {
-                      if (!edu.organization && !edu.role) return null;
-                      return (
-                        <div key={eduIdx} className="cv-item">
-                          <div className="cv-item-header">
-                            <div className="cv-item-title-org">
-                              <span className="cv-role" style={{ fontWeight: 700 }}>{edu.role || 'Degree'}</span>
-                              <span className="cv-role-separator">/</span>
-                              <span className="cv-org">{edu.organization || 'Institution'}</span>
-                            </div>
-                            <span className="cv-date">{edu.dates || 'Dates'}</span>
-                          </div>
-                          {edu.bullets && edu.bullets.length > 0 && (
-                            <ul className="cv-bullets">
-                              {edu.bullets.map((bullet, bulletIdx) => (
-                                bullet.trim() && <li key={bulletIdx}>{bullet}</li>
-                              ))}
-                            </ul>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-
-                {/* Tech Skills Section */}
-                {cvData.skills && cvData.skills.length > 0 && (
-                  <div className="cv-section">
-                    <div className="cv-section-header">
-                      <h3 className="cv-section-title">Tech Skills</h3>
-                      <div className="cv-divider"></div>
-                    </div>
-                    <div className="cv-skills-grid">
-                      {cvData.skills.map((skill, skillIdx) => {
-                        if (!skill.category || !skill.items) return null;
-                        return (
-                          <div key={skillIdx} className="cv-skills-item">
-                            <span className="cv-skills-category">{skill.category}: </span>
-                            <span className="cv-skills-list">{skill.items}</span>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-
-                {/* Custom Sections Section */}
-                {cvData.customSections && cvData.customSections.length > 0 && (
+                
+                {/* -------------------- CLASSIC TEMPLATE -------------------- */}
+                {cvTemplate === 'classic' && (
                   <>
-                    {cvData.customSections.map((section) => {
-                      if (!section.title || !section.title.trim()) return null;
-                      const activeItems = (section.items || []).filter(item => item.title && item.title.trim());
-                      if (activeItems.length === 0) return null;
-                      return (
-                        <div key={section.id} className="cv-section">
-                          <div className="cv-section-header">
-                            <h3 className="cv-section-title">{section.title}</h3>
-                            <div className="cv-divider"></div>
+                    {/* CV Header */}
+                    <div className="cv-header">
+                      <div className="cv-name-row">
+                        <span className="cv-name">{cvData.name || 'Your Name'}</span>
+                        {(cvData.name && cvData.title) && <span className="cv-name-separator"></span>}
+                        <span className="cv-title">{cvData.title || 'Specialization'}</span>
+                      </div>
+                      
+                      <div className="cv-subtitle-row">
+                        {cvData.phone && (
+                          <div className="cv-subtitle-item">
+                            <Phone size={11} />
+                            <span>{cvData.phone}</span>
                           </div>
-                          {activeItems.map((item, itemIdx) => (
-                            <div key={itemIdx} className="cv-item">
+                        )}
+                        {(cvData.phone && cvData.email) && <span className="cv-subtitle-bullet">•</span>}
+                        {cvData.email && (
+                          <div className="cv-subtitle-item">
+                            <Mail size={11} />
+                            <span>{cvData.email}</span>
+                          </div>
+                        )}
+                        {(cvData.email && cvData.location) && <span className="cv-subtitle-bullet">•</span>}
+                        {cvData.location && (
+                          <div className="cv-subtitle-item">
+                            <MapPin size={11} />
+                            <span>{cvData.location}</span>
+                          </div>
+                        )}
+                        {(cvData.location && cvData.linkedin) && <span className="cv-subtitle-bullet">•</span>}
+                        {cvData.linkedin && (
+                          <div className="cv-subtitle-item">
+                            <Linkedin size={11} />
+                            <a 
+                              href={cvData.linkedin.trim().startsWith('http') ? cvData.linkedin.trim() : `https://${cvData.linkedin.trim()}`} 
+                              target="_blank" 
+                              rel="noopener noreferrer" 
+                              style={{ color: 'inherit', textDecoration: 'underline' }}
+                            >
+                              Linkedin
+                            </a>
+                          </div>
+                        )}
+                        {(cvData.linkedin && cvData.github) && <span className="cv-subtitle-bullet">•</span>}
+                        {cvData.github && (
+                          <div className="cv-subtitle-item">
+                            <Github size={11} />
+                            <a 
+                              href={cvData.github.trim().startsWith('http') ? cvData.github.trim() : `https://${cvData.github.trim()}`} 
+                              target="_blank" 
+                              rel="noopener noreferrer" 
+                              style={{ color: 'inherit', textDecoration: 'underline' }}
+                            >
+                              Github
+                            </a>
+                          </div>
+                        )}
+                      </div>
+
+                      {cvData.summary && (
+                        <div className="cv-summary">
+                          {cvData.summary}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Experience Section */}
+                    {cvData.experience && cvData.experience.length > 0 && (
+                      <div className="cv-section">
+                        <div className="cv-section-header">
+                          <h3 className="cv-section-title">Experience</h3>
+                          <div className="cv-divider"></div>
+                        </div>
+                        {cvData.experience.map((job, jobIdx) => {
+                          if (!job.organization && !job.role) return null;
+                          return (
+                            <div key={jobIdx} className="cv-item">
                               <div className="cv-item-header">
                                 <div className="cv-item-title-org">
-                                  <span className="cv-org">{item.title}</span>
-                                  {item.subtitle && <span className="cv-role-separator">/</span>}
-                                  {item.subtitle && <span className="cv-role">{item.subtitle}</span>}
+                                  <span className="cv-org">{job.organization || 'Company'}</span>
+                                  <span className="cv-role-separator">/</span>
+                                  <span className="cv-role">{job.role || 'Role'}</span>
                                 </div>
-                                <span className="cv-date">{item.date}</span>
+                                <span className="cv-date">{job.dates || 'Dates'}</span>
                               </div>
-                              {item.bullets && item.bullets.length > 0 && (
+                              {job.bullets && job.bullets.length > 0 && (
                                 <ul className="cv-bullets">
-                                  {item.bullets.map((bullet, bulletIdx) => (
+                                  {job.bullets.map((bullet, bulletIdx) => (
                                     bullet.trim() && <li key={bulletIdx}>{bullet}</li>
                                   ))}
                                 </ul>
                               )}
                             </div>
-                          ))}
+                          );
+                        })}
+                      </div>
+                    )}
+
+                    {/* Education Section */}
+                    {cvData.education && cvData.education.length > 0 && (
+                      <div className="cv-section">
+                        <div className="cv-section-header">
+                          <h3 className="cv-section-title">Education</h3>
+                          <div className="cv-divider"></div>
                         </div>
-                      );
-                    })}
+                        {cvData.education.map((edu, eduIdx) => {
+                          if (!edu.organization && !edu.role) return null;
+                          return (
+                            <div key={eduIdx} className="cv-item">
+                              <div className="cv-item-header">
+                                <div className="cv-item-title-org">
+                                  <span className="cv-role" style={{ fontWeight: 700 }}>{edu.role || 'Degree'}</span>
+                                  <span className="cv-role-separator">/</span>
+                                  <span className="cv-org">{edu.organization || 'Institution'}</span>
+                                </div>
+                                <span className="cv-date">{edu.dates || 'Dates'}</span>
+                              </div>
+                              {edu.bullets && edu.bullets.length > 0 && (
+                                <ul className="cv-bullets">
+                                  {edu.bullets.map((bullet, bulletIdx) => (
+                                    bullet.trim() && <li key={bulletIdx}>{bullet}</li>
+                                  ))}
+                                </ul>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+
+                    {/* Tech Skills Section */}
+                    {cvData.skills && cvData.skills.length > 0 && (
+                      <div className="cv-section">
+                        <div className="cv-section-header">
+                          <h3 className="cv-section-title">Tech Skills</h3>
+                          <div className="cv-divider"></div>
+                        </div>
+                        <div className="cv-skills-grid">
+                          {cvData.skills.map((skill, skillIdx) => {
+                            if (!skill.category || !skill.items) return null;
+                            return (
+                              <div key={skillIdx} className="cv-skills-item">
+                                <span className="cv-skills-category">{skill.category}: </span>
+                                <span className="cv-skills-list">{skill.items}</span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Custom Sections Section */}
+                    {cvData.customSections && cvData.customSections.length > 0 && (
+                      <>
+                        {cvData.customSections.map((section) => {
+                          if (!section.title || !section.title.trim()) return null;
+                          const activeItems = (section.items || []).filter(item => item.title && item.title.trim());
+                          if (activeItems.length === 0) return null;
+                          return (
+                            <div key={section.id} className="cv-section">
+                              <div className="cv-section-header">
+                                <h3 className="cv-section-title">{section.title}</h3>
+                                <div className="cv-divider"></div>
+                              </div>
+                              {activeItems.map((item, itemIdx) => (
+                                <div key={itemIdx} className="cv-item">
+                                  <div className="cv-item-header">
+                                    <div className="cv-item-title-org">
+                                      <span className="cv-org">{item.title}</span>
+                                      {item.subtitle && <span className="cv-role-separator">/</span>}
+                                      {item.subtitle && <span className="cv-role">{item.subtitle}</span>}
+                                    </div>
+                                    <span className="cv-date">{item.date}</span>
+                                  </div>
+                                  {item.bullets && item.bullets.length > 0 && (
+                                    <ul className="cv-bullets">
+                                      {item.bullets.map((bullet, bulletIdx) => (
+                                        bullet.trim() && <li key={bulletIdx}>{bullet}</li>
+                                      ))}
+                                    </ul>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          );
+                        })}
+                      </>
+                    )}
+
+                    {/* Languages Section */}
+                    {cvData.languages && cvData.languages.length > 0 && (
+                      <div className="cv-section">
+                        <div className="cv-section-header">
+                          <h3 className="cv-section-title">Languages</h3>
+                          <div className="cv-divider"></div>
+                        </div>
+                        <div className="cv-languages-grid">
+                          {cvData.languages.map((lang, langIdx) => {
+                            if (!lang.name) return null;
+                            return (
+                              <div key={langIdx} className="cv-language-item">
+                                <span className="cv-language-name">{lang.name}</span>
+                                {lang.proficiency && <span>: {lang.proficiency}</span>}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
                   </>
                 )}
 
-                {/* Languages Section */}
-                {cvData.languages && cvData.languages.length > 0 && (
-                  <div className="cv-section">
-                    <div className="cv-section-header">
-                      <h3 className="cv-section-title">Languages</h3>
-                      <div className="cv-divider"></div>
+                {/* -------------------- SIDEBAR TEMPLATE -------------------- */}
+                {cvTemplate === 'sidebar' && (
+                  <div className="template-sidebar">
+                    <div className="ts-left-col">
+                      {cvData.photo && (
+                        <div className="ts-photo-container">
+                          <img src={cvData.photo} alt="Profile" className="ts-photo" />
+                        </div>
+                      )}
+                      <div className="ts-contact-info">
+                        <h3 className="ts-heading-left">Contact Info</h3>
+                        <div className="ts-divider-left"></div>
+                        {cvData.email && <div className="ts-contact-item"><Mail size={12}/> <span>{cvData.email}</span></div>}
+                        {cvData.phone && <div className="ts-contact-item"><Phone size={12}/> <span>{cvData.phone}</span></div>}
+                        {cvData.location && <div className="ts-contact-item"><MapPin size={12}/> <span>{cvData.location}</span></div>}
+                        {cvData.linkedin && <div className="ts-contact-item"><Linkedin size={12}/> <span>{cvData.linkedin}</span></div>}
+                        {cvData.github && <div className="ts-contact-item"><Github size={12}/> <span>{cvData.github}</span></div>}
+                      </div>
+
+                      {cvData.customSections && cvData.customSections.length > 0 && (
+                        cvData.customSections.map(section => {
+                          const activeItems = (section.items || []).filter(item => item.title && item.title.trim());
+                          if (activeItems.length === 0) return null;
+                          return (
+                            <div key={section.id} className="ts-custom-section">
+                              <h3 className="ts-heading-left">{section.title}</h3>
+                              <div className="ts-divider-left"></div>
+                              {activeItems.map((item, idx) => (
+                                <div key={idx} className="ts-custom-item">
+                                  <span style={{fontWeight: 700, color: '#1e293b'}}>{item.title}</span>
+                                  {item.subtitle && <span style={{fontSize: '0.85em', color: '#475569'}}>{item.subtitle}</span>}
+                                </div>
+                              ))}
+                            </div>
+                          )
+                        })
+                      )}
+
+                      {cvData.skills && cvData.skills.length > 0 && (
+                        <div className="ts-skills-section">
+                          <h3 className="ts-heading-left">Skills</h3>
+                          <div className="ts-divider-left"></div>
+                          {cvData.skills.map((skill, idx) => (
+                            <div key={idx} className="ts-skill-item">
+                              <span style={{fontWeight: 700, color: '#1e293b', marginBottom: '2px'}}>{skill.category}</span>
+                              <span style={{color: '#475569', fontSize: '0.9em', lineHeight: '1.3'}}>{skill.items}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {cvData.languages && cvData.languages.length > 0 && (
+                        <div className="ts-languages-section">
+                          <h3 className="ts-heading-left">Languages</h3>
+                          <div className="ts-divider-left"></div>
+                          {cvData.languages.map((lang, idx) => (
+                            <div key={idx} className="ts-language-item">
+                              <span style={{fontWeight: 700, color: '#1e293b'}}>{lang.name}</span>
+                              {lang.proficiency && <span style={{color: '#475569', fontSize: '0.9em'}}>{lang.proficiency}</span>}
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
-                    <div className="cv-languages-grid">
-                      {cvData.languages.map((lang, langIdx) => {
-                        if (!lang.name) return null;
-                        return (
-                          <div key={langIdx} className="cv-language-item">
-                            <span className="cv-language-name">{lang.name}</span>
-                            {lang.proficiency && <span>: {lang.proficiency}</span>}
-                          </div>
-                        );
-                      })}
+
+                    <div className="ts-right-col">
+                      <div className="ts-header">
+                        <h1 className="ts-name">{cvData.name || 'Your Name'}</h1>
+                        <h2 className="ts-title">{cvData.title || 'Specialization'}</h2>
+                      </div>
+
+                      {cvData.summary && (
+                        <div className="ts-section">
+                          <h3 className="ts-heading-right">Profile</h3>
+                          <div className="ts-divider-right"></div>
+                          <p className="ts-summary">{cvData.summary}</p>
+                        </div>
+                      )}
+
+                      {cvData.experience && cvData.experience.length > 0 && (
+                        <div className="ts-section">
+                          <h3 className="ts-heading-right">Work Experience</h3>
+                          <div className="ts-divider-right"></div>
+                          {cvData.experience.map((job, jobIdx) => {
+                            if (!job.organization && !job.role) return null;
+                            return (
+                              <div key={jobIdx} className="ts-item">
+                                <div className="ts-item-header">
+                                  <div className="ts-item-title">
+                                    <span className="ts-role">{job.role}</span>
+                                    {job.organization && <span className="ts-org-sep"> - </span>}
+                                    <span className="ts-org">{job.organization}</span>
+                                  </div>
+                                  <div className="ts-date">{job.dates}</div>
+                                </div>
+                                {job.bullets && job.bullets.length > 0 && (
+                                  <ul className="ts-bullets">
+                                    {job.bullets.map((bullet, bulletIdx) => (
+                                      bullet.trim() && <li key={bulletIdx}>{bullet}</li>
+                                    ))}
+                                  </ul>
+                                )}
+                              </div>
+                            )
+                          })}
+                        </div>
+                      )}
+
+                      {cvData.education && cvData.education.length > 0 && (
+                        <div className="ts-section">
+                          <h3 className="ts-heading-right">Education</h3>
+                          <div className="ts-divider-right"></div>
+                          {cvData.education.map((edu, eduIdx) => {
+                            if (!edu.organization && !edu.role) return null;
+                            return (
+                              <div key={eduIdx} className="ts-item">
+                                <div className="ts-item-header">
+                                  <div className="ts-item-title">
+                                    <span className="ts-role" style={{fontWeight: 700}}>{edu.role}</span>
+                                  </div>
+                                  <div className="ts-date">{edu.dates}</div>
+                                </div>
+                                <div className="ts-org" style={{fontStyle: 'italic', color: '#475569', marginBottom: '4px'}}>{edu.organization}</div>
+                                {edu.bullets && edu.bullets.length > 0 && (
+                                  <ul className="ts-bullets">
+                                    {edu.bullets.map((bullet, bulletIdx) => (
+                                      bullet.trim() && <li key={bulletIdx}>{bullet}</li>
+                                    ))}
+                                  </ul>
+                                )}
+                              </div>
+                            )
+                          })}
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}
               </div>
+            </div>
             </div>
           </section>
         </main>

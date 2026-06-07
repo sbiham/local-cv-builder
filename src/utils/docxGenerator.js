@@ -146,7 +146,7 @@ export async function generateDocx(data) {
         }),
         new TextRun({
           text: data.title || 'Professional Title',
-          color: "0b5394", // Template Highlight Blue
+          color: "c2410c", // Template Highlight Orange
           size: 36, // 18pt
           font: "Lato"
         })
