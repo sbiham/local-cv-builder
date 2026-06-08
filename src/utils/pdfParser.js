@@ -55,9 +55,11 @@ export async function parsePdf(file) {
           const lines = [];
           textItems.sort((a, b) => b.y - a.y);
           
-          for (const item of textItems) {
+          for (let i = 0; i < textItems.length; i++) {
+            const item = textItems[i];
             let foundLine = null;
-            for (const line of lines) {
+            for (let j = 0; j < lines.length; j++) {
+              const line = lines[j];
               if (Math.abs(line.y - item.y) < 4) {
                 foundLine = line;
                 break;
@@ -70,12 +72,14 @@ export async function parsePdf(file) {
           lines.sort((a, b) => b.y - a.y);
           let pageText = '';
           
-          for (const line of lines) {
+          for (let k = 0; k < lines.length; k++) {
+            const line = lines[k];
             line.items.sort((a, b) => a.x - b.x);
             let lineText = '';
             let lastX = -1;
             
-            for (const item of line.items) {
+            for (let m = 0; m < line.items.length; m++) {
+              const item = line.items[m];
               if (lastX !== -1 && item.x > lastX + 3) {
                 if (!lineText.endsWith(' ') && !item.str.startsWith(' ')) {
                   lineText += ' ';
