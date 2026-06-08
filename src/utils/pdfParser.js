@@ -11,8 +11,11 @@ export async function parsePdf(file) {
     const arrayBuffer = await file.arrayBuffer();
     const uint8Array = new Uint8Array(arrayBuffer);
     
-    // Check PDF header magic bytes
-    const header = String.fromCharCode(...uint8Array.slice(0, 5));
+    // Check PDF header magic bytes safely without spreading TypedArrays
+    let header = '';
+    for (let i = 0; i < 5 && i < uint8Array.length; i++) {
+      header += String.fromCharCode(uint8Array[i]);
+    }
     if (header !== '%PDF-') {
       throw new Error('File does not appear to be a valid PDF (missing %PDF- header).');
     }
