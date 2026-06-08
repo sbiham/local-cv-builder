@@ -1834,7 +1834,7 @@ function App() {
                       <div className="cv-name-row">
                         <span className="cv-name">{cvData.name || 'Your Name'}</span>
                         {(cvData.name && cvData.title) && <span className="cv-name-separator"></span>}
-                        <span className="cv-title">{cvData.title || 'Specialization'}</span>
+                        {cvData.title && <span className="cv-title">{cvData.title}</span>}
                       </div>
                       
                       <div className="cv-subtitle-row">
@@ -2095,7 +2095,7 @@ function App() {
                     <div className="ts-right-col">
                       <div className="ts-header">
                         <h1 className="ts-name">{cvData.name || 'Your Name'}</h1>
-                        <h2 className="ts-title">{cvData.title || 'Specialization'}</h2>
+                        {cvData.title && <h2 className="ts-title">{cvData.title}</h2>}
                       </div>
 
                       {cvData.summary && (
