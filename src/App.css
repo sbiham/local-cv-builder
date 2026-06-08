@@ -886,6 +886,7 @@ body {
     page-break-inside: avoid;
   }
 }
+.mobile-menu-btn { display: none; }
 
 /* RESPONSIVE LAYOUT FOR TABLET AND MOBILE DEVICES */
 @media (max-width: 1024px) {
@@ -1411,5 +1412,3 @@ body {
 .template-sidebar-page {
   padding: 0 !important;
 }
-
-.mobile-menu-btn { display: none; }
