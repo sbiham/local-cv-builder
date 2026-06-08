@@ -896,7 +896,49 @@ body {
   }
 
   .sidebar-wrapper {
+    width: 100%;
+    max-width: 100%;
+    height: auto;
+    border-right: none;
+    border-bottom: 1px solid var(--panel-border);
+    flex-shrink: 0;
+    overflow: hidden;
+  }
+
+  .sidebar-menu {
+    width: 100%;
+    padding: 0.5rem;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .sidebar-title {
     display: none;
+  }
+
+  .sidebar-nav {
+    display: flex;
+    flex-direction: row;
+    overflow-x: auto;
+    gap: 0.5rem;
+    padding-bottom: 0.25rem;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none; /* Hide scrollbar for cleaner look */
+  }
+
+  .sidebar-nav::-webkit-scrollbar {
+    display: none;
+  }
+
+  .sidebar-btn {
+    white-space: nowrap;
+    padding: 0.5rem 1rem;
+    flex-shrink: 0;
+    justify-content: center;
+  }
+
+  .sidebar-btn svg {
+    margin-right: 0.4rem;
   }
 
   .editor-panel {
@@ -937,16 +979,6 @@ body {
     justify-content: center;
   }
   
-  .api-key-container {
-    width: 100%;
-    justify-content: space-between;
-    gap: 0.5rem;
-  }
-  
-  .api-key-input {
-    flex: 1;
-    width: auto !important;
-  }
   
   .upload-workspace {
     padding: 1.5rem !important;
