@@ -4,7 +4,7 @@ import {
   FileText, FileDown, Plus, Trash2, Key, 
   Sparkles, Cpu, Briefcase, GraduationCap, Wrench, Info, RefreshCw,
   Globe, Lock, Download, User, Folder, CheckCircle,
-  ZoomIn, ZoomOut, Maximize2, LayoutTemplate, ImagePlus, ImageMinus, GripVertical
+  ZoomIn, ZoomOut, Maximize2, LayoutTemplate, ImagePlus, ImageMinus, GripVertical, Menu, X
 } from 'lucide-react';
 
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
@@ -159,6 +159,12 @@ function App() {
   const [newSectionTitle, setNewSectionTitle] = useState('');
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [sectionIdToDelete, setSectionIdToDelete] = useState(null);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  const handleTabClick = (tabId) => {
+    setActiveTab(tabId);
+    setIsMobileMenuOpen(false);
+  };
   const fileInputRef = useRef(null);
   const cvPageRef = useRef(null);
   const previewPanelRef = useRef(null);
@@ -903,14 +909,25 @@ function App() {
   return (
     <div className="app-container">
       <header className="app-header">
-        <div 
-          className="brand" 
-          onClick={handleReset}
-          style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer' }}
-          title="Return to home page"
-        >
-          <img src="/logo.png" alt="ElevateCV Logo" style={{ height: '36px', width: '36px', borderRadius: '6px' }} />
-          <h1>ElevateCV</h1>
+        <div style={{ display: 'flex', alignItems: 'center' }}>
+          {cvData && (
+            <button 
+              className="mobile-menu-btn" 
+              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+              title="Menu"
+            >
+              {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
+            </button>
+          )}
+          <div 
+            className="brand" 
+            onClick={handleReset}
+            style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer' }}
+            title="Return to home page"
+          >
+            <img src="/logo.png" alt="ElevateCV Logo" style={{ height: '36px', width: '36px', borderRadius: '6px' }} />
+            <h1>ElevateCV</h1>
+          </div>
         </div>
       </header>
 
@@ -1023,56 +1040,62 @@ function App() {
       {/* 2. DUAL EDITOR / PREVIEW WORKSPACE */}
       {cvData && (
         <main className="workspace">
+          {/* Overlay for mobile menu */}
+          <div 
+            className={`mobile-menu-overlay ${isMobileMenuOpen ? 'mobile-open' : ''}`}
+            onClick={() => setIsMobileMenuOpen(false)}
+          ></div>
+
           {/* Left panel: Sidebar Menu */}
-          <div className="sidebar-wrapper">
+          <div className={`sidebar-wrapper ${isMobileMenuOpen ? 'mobile-open' : ''}`}>
             <aside className="sidebar-menu">
               <h2 className="sidebar-title">Resume Builder</h2>
               <nav className="sidebar-nav">
                 <button 
                   className={`sidebar-btn ${activeTab === 'design' ? 'active' : ''}`}
-                  onClick={() => setActiveTab('design')}
+                  onClick={() => handleTabClick('design')}
                 >
                   <LayoutTemplate size={18} /> Design
                 </button>
                 <button 
                   className={`sidebar-btn ${activeTab === 'layout' ? 'active' : ''}`}
-                  onClick={() => setActiveTab('layout')}
+                  onClick={() => handleTabClick('layout')}
                 >
                   <GripVertical size={18} /> Section Layout
                 </button>
                 <button 
                   className={`sidebar-btn ${activeTab === 'personal' ? 'active' : ''}`}
-                  onClick={() => setActiveTab('personal')}
+                  onClick={() => handleTabClick('personal')}
                 >
                   <User size={18} /> Profile
                 </button>
                 <button 
                   className={`sidebar-btn ${activeTab === 'summary' ? 'active' : ''}`}
-                  onClick={() => setActiveTab('summary')}
+                  onClick={() => handleTabClick('summary')}
                 >
                   <FileText size={18} /> Summary
                 </button>
                 <button 
                   className={`sidebar-btn ${activeTab === 'experience' ? 'active' : ''}`}
-                  onClick={() => setActiveTab('experience')}
+                  onClick={() => handleTabClick('experience')}
                 >
                   <Briefcase size={18} /> Work Experience
                 </button>
                 <button 
                   className={`sidebar-btn ${activeTab === 'education' ? 'active' : ''}`}
-                  onClick={() => setActiveTab('education')}
+                  onClick={() => handleTabClick('education')}
                 >
                   <GraduationCap size={18} /> Education
                 </button>
                 <button 
                   className={`sidebar-btn ${activeTab === 'skills' ? 'active' : ''}`}
-                  onClick={() => setActiveTab('skills')}
+                  onClick={() => handleTabClick('skills')}
                 >
                   <Wrench size={18} /> Skills
                 </button>
                 <button 
                   className={`sidebar-btn ${activeTab === 'languages' ? 'active' : ''}`}
-                  onClick={() => setActiveTab('languages')}
+                  onClick={() => handleTabClick('languages')}
                 >
                   <Globe size={18} /> Languages
                 </button>
@@ -1080,7 +1103,7 @@ function App() {
                   <button
                     key={section.id}
                     className={`sidebar-btn ${activeTab === section.id ? 'active' : ''}`}
-                    onClick={() => setActiveTab(section.id)}
+                    onClick={() => handleTabClick(section.id)}
                   >
                     <Folder size={18} /> {section.title || 'Section'}
                   </button>
