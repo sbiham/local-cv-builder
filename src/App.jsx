@@ -36,6 +36,64 @@ import { parseCVHeuristic, parseCVWithAI } from './utils/cvParser';
 import { generateDocx } from './utils/docxGenerator';
 import './App.css';
 
+const AIRephraseButton = ({ text, onComplete, isPremium, setIsPremiumModalOpen, apiKey, disabled }) => {
+  const [loading, setLoading] = useState(false);
+
+  const handleRephrase = async () => {
+    if (!isPremium) {
+      setIsPremiumModalOpen(true);
+      return;
+    }
+    if (!apiKey) {
+      alert("Please enter your Gemini API Key in the Profile tab first.");
+      return;
+    }
+    if (!text || text.trim() === '') return;
+
+    setLoading(true);
+    try {
+      const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+      const prompt = `You are an expert resume writer. Rephrase the following text to make it sound more professional, impactful, and action-oriented. Return ONLY the rephrased text without any surrounding quotes or markdown.\n\nOriginal Text:\n${text}`;
+      
+      const payload = {
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: { temperature: 0.7 }
+      };
+      
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      
+      if (!response.ok) throw new Error('API request failed');
+      const data = await response.json();
+      const rephrased = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+      
+      if (rephrased) {
+        onComplete(rephrased);
+      }
+    } catch (err) {
+      alert("AI Rephrasing failed: " + err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <button 
+      className="ai-rephrase-btn" 
+      onClick={handleRephrase}
+      disabled={disabled || loading}
+      title="Rephrase with AI"
+      type="button"
+    >
+      <Sparkles size={14} />
+      {loading ? 'Rephrasing...' : 'AI Rephrase'}
+    </button>
+  );
+};
+
 const sampleCVData = {
   name: "John Dou",
   title: "Senior Backend Engineer",
@@ -160,6 +218,8 @@ function App() {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [sectionIdToDelete, setSectionIdToDelete] = useState(null);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isPremium, setIsPremium] = useState(false);
+  const [isPremiumModalOpen, setIsPremiumModalOpen] = useState(false);
 
   const handleTabClick = (tabId) => {
     setActiveTab(tabId);
@@ -1359,13 +1419,22 @@ function App() {
               <div className="editor-card">
                 <div className="form-group">
                   <label>Professional Summary</label>
-                  <textarea 
-                    rows={6}
-                    value={cvData.summary} 
-                    onChange={(e) => handleFieldChange('summary', null, 'summary', e.target.value)}
-                    className="form-textarea"
-                    placeholder="Write a brief, punchy professional summary..."
-                  />
+                  <div className="ai-rephrase-wrapper">
+                    <textarea 
+                      rows={6}
+                      value={cvData.summary} 
+                      onChange={(e) => handleFieldChange('summary', null, 'summary', e.target.value)}
+                      className="form-textarea"
+                      placeholder="Write a brief, punchy professional summary..."
+                    />
+                    <AIRephraseButton 
+                      text={cvData.summary} 
+                      onComplete={(rephrased) => handleFieldChange('summary', null, 'summary', rephrased)} 
+                      isPremium={isPremium} 
+                      setIsPremiumModalOpen={setIsPremiumModalOpen} 
+                      apiKey={apiKey} 
+                    />
+                  </div>
                 </div>
               </div>
             )}
@@ -1432,13 +1501,22 @@ function App() {
                       
                       {job.bullets.map((bullet, bulletIdx) => (
                         <div key={bulletIdx} style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.4rem' }}>
-                          <input 
-                            type="text" 
-                            value={bullet} 
-                            onChange={(e) => handleBulletChange(jobIdx, bulletIdx, e.target.value)}
-                            className="form-input"
-                            style={{ flex: 1 }}
-                          />
+                          <div className="ai-rephrase-wrapper" style={{ flex: 1 }}>
+                            <textarea 
+                              rows={2}
+                              value={bullet} 
+                              onChange={(e) => handleBulletChange(jobIdx, bulletIdx, e.target.value)}
+                              className="form-textarea"
+                              style={{ width: '100%', minHeight: '60px' }}
+                            />
+                            <AIRephraseButton 
+                              text={bullet} 
+                              onComplete={(rephrased) => handleBulletChange(jobIdx, bulletIdx, rephrased)} 
+                              isPremium={isPremium} 
+                              setIsPremiumModalOpen={setIsPremiumModalOpen} 
+                              apiKey={apiKey} 
+                            />
+                          </div>
                           <button 
                             type="button" 
                             onClick={() => removeBullet(jobIdx, bulletIdx)}
@@ -1667,13 +1745,22 @@ function App() {
 
                             {(item.bullets || []).map((bullet, bulletIdx) => (
                               <div key={bulletIdx} style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.4rem' }}>
-                                <input
-                                  type="text"
-                                  value={bullet}
-                                  onChange={(e) => handleCustomSectionBulletChange(section.id, itemIdx, bulletIdx, e.target.value)}
-                                  className="form-input"
-                                  style={{ flex: 1 }}
-                                />
+                                <div className="ai-rephrase-wrapper" style={{ flex: 1 }}>
+                                  <textarea
+                                    rows={2}
+                                    value={bullet}
+                                    onChange={(e) => handleCustomSectionBulletChange(section.id, itemIdx, bulletIdx, e.target.value)}
+                                    className="form-textarea"
+                                    style={{ width: '100%', minHeight: '60px' }}
+                                  />
+                                  <AIRephraseButton 
+                                    text={bullet} 
+                                    onComplete={(rephrased) => handleCustomSectionBulletChange(section.id, itemIdx, bulletIdx, rephrased)} 
+                                    isPremium={isPremium} 
+                                    setIsPremiumModalOpen={setIsPremiumModalOpen} 
+                                    apiKey={apiKey} 
+                                  />
+                                </div>
                                 <button
                                   type="button"
                                   onClick={() => removeCustomSectionBullet(section.id, itemIdx, bulletIdx)}
@@ -2290,6 +2377,24 @@ function App() {
           </div>
         </div>
       )}
+      {/* Premium Upgrade Modal */}
+      <div className={`premium-modal-overlay ${isPremiumModalOpen ? 'open' : ''}`}>
+        <div className="premium-modal">
+          <button className="premium-modal-close" onClick={() => setIsPremiumModalOpen(false)}>
+            <X size={20} />
+          </button>
+          <div className="premium-modal-icon">
+            <Sparkles size={40} />
+          </div>
+          <h3 className="premium-modal-title">Premium Feature</h3>
+          <p className="premium-modal-text">
+            Upgrade to Premium to unlock AI-powered text rephrasing and elevate your resume to the next level.
+          </p>
+          <button className="premium-upgrade-btn" onClick={() => { setIsPremium(true); setIsPremiumModalOpen(false); alert('You are now Premium for testing purposes!'); }}>
+            Upgrade Now
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
