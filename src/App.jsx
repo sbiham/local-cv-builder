@@ -37,6 +37,9 @@ import { generateDocx } from './utils/docxGenerator';
 import './App.css';
 
 const AIRephraseButton = ({ text, onComplete, isPremium, setIsPremiumModalOpen, apiKey, disabled }) => {
+  // HIDDEN: Return null to disable the premium feature UI
+  return null;
+  
   const [loading, setLoading] = useState(false);
 
   const handleRephrase = async () => {
@@ -2377,24 +2380,26 @@ function App() {
           </div>
         </div>
       )}
-      {/* Premium Upgrade Modal */}
-      <div className={`premium-modal-overlay ${isPremiumModalOpen ? 'open' : ''}`}>
-        <div className="premium-modal">
-          <button className="premium-modal-close" onClick={() => setIsPremiumModalOpen(false)}>
-            <X size={20} />
-          </button>
-          <div className="premium-modal-icon">
-            <Sparkles size={40} />
+      {/* Premium Upgrade Modal (HIDDEN) */}
+      {false && (
+        <div className={`premium-modal-overlay ${isPremiumModalOpen ? 'open' : ''}`}>
+          <div className="premium-modal">
+            <button className="premium-modal-close" onClick={() => setIsPremiumModalOpen(false)}>
+              <X size={20} />
+            </button>
+            <div className="premium-modal-icon">
+              <Sparkles size={40} />
+            </div>
+            <h3 className="premium-modal-title">Premium Feature</h3>
+            <p className="premium-modal-text">
+              Upgrade to Premium to unlock AI-powered text rephrasing and elevate your resume to the next level.
+            </p>
+            <button className="premium-upgrade-btn" onClick={() => { setIsPremium(true); setIsPremiumModalOpen(false); alert('You are now Premium for testing purposes!'); }}>
+              Upgrade Now
+            </button>
           </div>
-          <h3 className="premium-modal-title">Premium Feature</h3>
-          <p className="premium-modal-text">
-            Upgrade to Premium to unlock AI-powered text rephrasing and elevate your resume to the next level.
-          </p>
-          <button className="premium-upgrade-btn" onClick={() => { setIsPremium(true); setIsPremiumModalOpen(false); alert('You are now Premium for testing purposes!'); }}>
-            Upgrade Now
-          </button>
         </div>
-      </div>
+      )}
     </div>
   );
 }
